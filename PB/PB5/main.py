@@ -14,6 +14,11 @@ def padding(image, padding_size: int, color: int=255):
 
 def findHomography(src_pts, dst_pts):
     # Find homography matrix using Direct Linear Transform (DLT)
+    if len(src_pts) != len(dst_pts):
+        raise ValueError("There must be the same number of source and destination points")
+    if len(src_pts) < 4:
+        raise ValueError("More than 4 points are required")
+    
     A = []
     for src, dst in zip(src_pts, dst_pts):
         x, y = src
@@ -27,20 +32,47 @@ def findHomography(src_pts, dst_pts):
     H /= H[2, 2]
     
     return H
+def bilinear_interpolation(img, x, y):
+    x0, y0 = int(x), int(y)
+    x1, y1 = x0 + 1, y0 + 1
 
+    if x1 >= img.shape[1]:
+        x1 = x0
+    if y1 >= img.shape[0]:
+        y1 = y0
+
+    Q11 = img[y0, x0]
+    Q21 = img[y0, x1]
+    Q12 = img[y1, x0]
+    Q22 = img[y1, x1]
+
+    x_weight = x - x0
+    y_weight = y - y0
+
+    top_interp = Q21 * x_weight + Q11 * (1 - x_weight)
+    bottom_interp = Q22 * x_weight + Q12 * (1 - x_weight)
+
+    interpolated_value = bottom_interp * y_weight + top_interp * (1 - y_weight)
+
+    return interpolated_value
+    
 def warpPerspective1(src, H, dst_size):
     # Generate an empty image
     width, height = dst_size
     channel = src.shape[2] if src.ndim > 2 else 1
     dst = np.zeros((height, width, channel), dtype=src.dtype)
     
-    # Copy a pixel from 'src' to 'dst'
-    for py in range(height):
-        for px in range(width):
-            q = np.dot(H, [px, py, 1])
-            qx, qy = int(q[0]/q[-1] + 0.5), int(q[1]/q[-1] + 0.5)
-            if qx >= 0 and qy >= 0 and qx < width and qy < height:
+    # Iterate over the destination image
+    for qy in range(height):
+        for qx in range(width):
+            # Calculate the inverse mapping using the homography matrix H
+            q = np.dot(np.linalg.inv(H), [qx, qy, 1])
+            px, py = int(q[0]/q[-1] + 0.5), int(q[1]/q[-1] + 0.5)
+            
+            # Check if the source pixel is within bounds
+            if px >= 0 and py >= 0 and px < src.shape[1] and py < src.shape[0]:
                 dst[qy, qx] = src[py, px]
+    
     return dst
 
 def warpPerspective(image, homography_matrix, output_shape):
@@ -60,8 +92,8 @@ def warpPerspective(image, homography_matrix, output_shape):
 
 border = 100
 
-im1 = padding(cv.imread('parede1.jpg'),border,0)
-im2 = padding(cv.imread('parede2.jpg'),border,0)
+im1 = padding(cv.imread('PB\PB5\parede1.jpg'),border,0)
+im2 = padding(cv.imread('PB\PB5\parede2.jpg'),border,0)
 
 
 c1 = np.array([[67,21],[156,32],[62,168],[160,170]], dtype=np.float32) + border
