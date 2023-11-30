@@ -32,29 +32,6 @@ def findHomography(src_pts, dst_pts):
     H /= H[2, 2]
     
     return H
-def bilinear_interpolation(img, x, y):
-    x0, y0 = int(x), int(y)
-    x1, y1 = x0 + 1, y0 + 1
-
-    if x1 >= img.shape[1]:
-        x1 = x0
-    if y1 >= img.shape[0]:
-        y1 = y0
-
-    Q11 = img[y0, x0]
-    Q21 = img[y0, x1]
-    Q12 = img[y1, x0]
-    Q22 = img[y1, x1]
-
-    x_weight = x - x0
-    y_weight = y - y0
-
-    top_interp = Q21 * x_weight + Q11 * (1 - x_weight)
-    bottom_interp = Q22 * x_weight + Q12 * (1 - x_weight)
-
-    interpolated_value = bottom_interp * y_weight + top_interp * (1 - y_weight)
-
-    return interpolated_value
     
 def warpPerspective1(src, H, dst_size):
     # Generate an empty image
