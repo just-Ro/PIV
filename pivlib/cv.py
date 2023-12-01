@@ -1,17 +1,5 @@
-from scipy import ndimage
 import numpy as np
-import cv2 as cv
 
-
-def padding(image, padding_size: int, color: int=255):
-
-    # Create a larger canvas with padding
-    canvas = np.ones((image.shape[0] + 2 * padding_size, image.shape[1] + 2 * padding_size, 3), dtype=np.uint8) * color
-
-    # Place the image with padding on the canvas
-    canvas[padding_size:padding_size + image.shape[0], padding_size:padding_size + image.shape[1]] = image
-    
-    return canvas
 
 def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray) -> np.ndarray:
     """
@@ -53,6 +41,7 @@ def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray) -> np.ndarray:
     H /= H[2, 2]
     
     return H
+
 
 def warpPerspective(src: np.ndarray, H: np.ndarray, dst_size) -> np.ndarray:
     """
@@ -104,36 +93,3 @@ def addWeighted(src1: np.ndarray, alpha: float, src2: np.ndarray, beta: float, g
 
     # Perform the weighted summation
     return np.clip(src1 * alpha + src2 * beta + gamma, 0, 255).astype(np.uint8)
-
-border = 100
-
-im1 = padding(cv.imread('PB\PB5\parede1.jpg'),border,0)
-im2 = padding(cv.imread('PB\PB5\parede2.jpg'),border,0)
-
-
-c1 = np.array([[67,21],[156,32],[62,168],[160,170]], dtype=np.float32) + border
-c2 = np.array([[135,54],[213,50],[125,186],[206,196]], dtype=np.float32) + border
-world = np.array([[0,0],[841,0],[0,1189],[841,1189]])*0.09 + 2*border
-
-H1 = findHomography(c1, world)
-H2 = findHomography(c2, world)
-
-# Warp both images
-result_image1 = warpPerspective(im1, H1, (im1.shape[1], im1.shape[0]))
-result_image2 = warpPerspective(im2, H2, (im2.shape[1], im2.shape[0]))
-
-blended_result = addWeighted(result_image1, 0.5, result_image2, 0.5, 0)
-
-for point in c1:
-    cv.circle(im1, tuple(map(int, point)), 5, (0, 255, 0), -1)
-
-for point in c2:
-    cv.circle(im2, tuple(map(int, point)), 5, (0, 255, 0), -1)
-
-cv.imshow('Image 1', im1)
-cv.imshow('Image 2', im2)
-cv.imshow('Warped Image 1', result_image1)
-cv.imshow('Warped Image 2', result_image2)
-cv.imshow('Blended Result', blended_result)
-cv.waitKey(0)
-cv.destroyAllWindows()
