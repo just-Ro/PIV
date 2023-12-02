@@ -1,56 +1,29 @@
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
-import cv2 as cv
 import sys
-from pprint import pprint
+from scipy.io import loadmat
+from sklearn.neighbors import NearestNeighbors                                                       #the goattt
+
 
 class Config():
     def __init__(self, config_dict: dict):
-        self.videos: str = config_dict['videos'][0]
-        self.keypoints_out: str = config_dict['keypoints_out'][0]
-        #self.
-        pass
+        self.videos: str = config_dict['videos'][0][0]
+        self.keypoints_out: str = config_dict['keypoints_out'][0][0]
+        self.transforms_out: str = config_dict['transforms_out'][0][0]
+        self.transforms_type: str = config_dict['transforms'][0][0]
+        self.transforms_params: str = config_dict['transforms'][0][1]
+        self.pts_in_frame: np.ndarray = np.array(config_dict['pts_in_frame'])[:, 1:].astype(int).reshape(2,-1,2)
+        self.pts_in_map: np.ndarray = np.array(config_dict['pts_in_map'])[:, 1:].astype(int).reshape(2,-1,2)
 
-
-def feature_extraction() -> np.ndarray:
-    """Extract features from the images"""
-    # Read an image from file
-    image_path = "image.jpg"
-    img = cv.imread(image_path)
-
-    # Convert the image to grayscale
-    gray_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-
-    # Initialize the SIFT detector
-    sift = cv.SIFT_create()
-
-    # Detect keypoints and compute descriptors
-    keypoints, descriptors = sift.detectAndCompute(gray_img, None)
-
-    # Draw keypoints on the image
-    img_with_keypoints = cv.drawKeypoints(gray_img, keypoints, None)
-
-    """ # Display the image with keypoints
-    plt.imshow(cv.cvtColor(img_with_keypoints, cv.COLOR_BGR2RGB))
-    plt.axis("off")
-    plt.show() """
-
-
-    keypoints_coord = []
-    # store the keypoints coordinates
-    for point in keypoints:
-        keypoints_coord.append(point.pt)
-    keypoints_coord = np.array(keypoints_coord)
-
-    descriptors = np.array(descriptors)
-
-    features = np.append(keypoints_coord, descriptors, axis=1)
-    features = np.transpose(features)
-
-    return features
-
-
+    def show(self):
+        print("videos:              ",self.videos)
+        print("points in frame:     ",self.pts_in_frame)
+        print("points in map:       ",self.pts_in_map)
+        print("transforms type:     ",self.transforms_type)
+        print("transforms params:   ",self.transforms_params)
+        print("transforms out:      ",self.transforms_out)
+        print("keypoints out:       ",self.keypoints_out)
 
 def parse_config_file(file_path: str) -> dict:
     """Parse config file on file_path"""
@@ -82,6 +55,43 @@ def parse_config_file(file_path: str) -> dict:
 
     return config_dict
 
+def feat(frame1, frame2):
+    
+    
+    
+    pass
+
+def feature_matching(frame1, frame2):
+    """
+    Find the nearest neighbors between two sets of keypoints
+    - param src: Keypoints from the source image
+    - param dst: Keypoints from the destination image
+    - return: A list of corresponding keypoint pairs
+    """
+    frame1 = frame1.T
+    frame2 = frame2.T
+    flagi = False
+
+    if frame1.shape[0] < frame2.shape[0]:
+        temp = frame1
+        frame1 = frame2
+        frame2 = temp
+        flagi = True
+
+    features1 = frame1[:,2:]
+    features2 = frame2[:,2:]
+
+    # Create a NearestNeighbors model
+    knn_model = NearestNeighbors(n_neighbors=1)
+    knn_model.fit(features1)
+
+    # Use kneighbors to find the nearest neighbors
+    _, indices = knn_model.kneighbors(features2, n_neighbors=1)
+
+    keypoints2 = frame2[:, :2][indices.flatten()]
+    keypoints1 = frame1[:, :2]
+
+    return keypoints1, keypoints2 if flagi else keypoints2, keypoints1
 
 def main():
     if len(sys.argv) != 2:
@@ -89,13 +99,16 @@ def main():
         sys.exit(1)
 
     # Get the configuration file path from the command-line argument
-    config_file_path = sys.argv[1]
+    config_data = Config(parse_config_file(sys.argv[1]))
+
+        
+    # Feature matching
+    features = loadmat(config_data.keypoints_out)['features']
+    print(features.shape())
+
+
+
     
-    config_data = parse_config_file(config_file_path)
-
-        print(pprint(config_data))
-        feature_extraction()
-
 
 if __name__=='__main__':
     main()
