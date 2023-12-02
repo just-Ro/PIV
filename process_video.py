@@ -6,7 +6,7 @@ from pprint import pprint
 from scipy.io import savemat, loadmat
 from pivlib.utils import Progress
 
-stepsize = 10
+stepsize = 50
 
 class Config():
     def __init__(self, config_dict: dict):

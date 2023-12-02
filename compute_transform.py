@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import sys
 from scipy.io import loadmat
 from sklearn.neighbors import NearestNeighbors                                                       #the goattt
+from pivlib.cv import ransac, findHomography
 
 
 class Config():
@@ -55,17 +56,11 @@ def parse_config_file(file_path: str) -> dict:
 
     return config_dict
 
-def feat(frame1, frame2):
-    
-    
-    
-    pass
-
 def feature_matching(frame1, frame2):
     """
     Find the nearest neighbors between two sets of keypoints
-    - param src: Keypoints from the source image
-    - param dst: Keypoints from the destination image
+    - param frame1: Keypoints from the source image
+    - param frame2: Keypoints from the destination image
     - return: A list of corresponding keypoint pairs
     """
     frame1 = frame1.T
@@ -73,9 +68,7 @@ def feature_matching(frame1, frame2):
     flagi = False
 
     if frame1.shape[0] < frame2.shape[0]:
-        temp = frame1
-        frame1 = frame2
-        frame2 = temp
+        frame1, frame2 = frame2, frame1
         flagi = True
 
     features1 = frame1[:,2:]
@@ -88,10 +81,56 @@ def feature_matching(frame1, frame2):
     # Use kneighbors to find the nearest neighbors
     _, indices = knn_model.kneighbors(features2, n_neighbors=1)
 
-    keypoints2 = frame2[:, :2][indices.flatten()]
-    keypoints1 = frame1[:, :2]
+    keypoints1 = frame1[:, :2][indices.flatten()]
+    keypoints2 = frame2[:, :2]
 
-    return keypoints1, keypoints2 if flagi else keypoints2, keypoints1
+    # Falta meter as imagens lado a lado para ver melhor(está a funcionar bem) 
+    """ # Display the pairs
+    print('Keypoint Pairs:')
+    print('Image 1\tImage 2')
+    for i in range(len(keypoints1)):
+        print('({:.2f}, {:.2f})\t({:.2f}, {:.2f})'.format(keypoints1[i, 0], keypoints1[i, 1], keypoints2[i, 0], keypoints2[i, 1]))
+
+    # Plotting for visualization
+    plt.scatter(frame1[:, 0], frame1[:, 1], label='Keypoints in Image 1', marker='o', color='blue')
+    plt.scatter(frame2[:, 0], frame2[:, 1], label='Keypoints in Image 2', marker='x', color='red')
+
+    # Plot lines between corresponding keypoints
+    for i in range(len(keypoints1)):
+        plt.plot([frame1[i, 0], frame2[i, 0]], [frame1[i, 1], frame2[i, 1]], color='green')
+
+    plt.legend()
+    plt.title('Corresponding Keypoints between Images')
+    plt.xlabel('Feature 1')
+    plt.ylabel('Feature 2')
+    plt.show() """
+
+    if flagi:
+        return keypoints2, keypoints1
+    else:
+        return keypoints1, keypoints2
+
+def findBestHomography(features1, features2):
+    # MATCHING
+    keypoints1, keypoints2 = feature_matching(features1, features2)
+    # RANSAC
+    _, inliers = ransac(keypoints1, keypoints2, 100, 0.1)   # 100 iterations, 0.1 threshold --- Sujeito a alteracoes
+    # HOMOGRAPHY
+    homography = findHomography(keypoints1[inliers], keypoints2[inliers])
+
+    return homography
+
+def mapHomographies(features):
+
+    H_prev =np.eye(3)
+
+    # feature[0,0]
+    # feature[0,1]
+    
+    # for img in features:
+
+def allHomographies(features):
+    pass
 
 def main():
     if len(sys.argv) != 2:
@@ -101,14 +140,16 @@ def main():
     # Get the configuration file path from the command-line argument
     config_data = Config(parse_config_file(sys.argv[1]))
 
-        
-    # Feature matching
     features = loadmat(config_data.keypoints_out)['features']
-    print(features.shape())
+    features = features[0, :]
 
-
-
-    
+    if config_data.transforms_type == 'all':
+        allHomographies(features)
+    elif config_data.transforms_type == 'map':
+        mapHomographies(features)
+    else:
+        print("Transforms type not recognized")
+        sys.exit(1)
 
 if __name__=='__main__':
     main()
