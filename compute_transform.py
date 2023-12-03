@@ -36,12 +36,15 @@ def feature_matching(frame1: np.ndarray, frame2: np.ndarray):
     indices = knn_model.kneighbors(frame[~largest][:,2:], n_neighbors=1)[1].flatten()
 
     # Match largest feature space with smallest feature space indices
-    keypoints1 = frame[largest][:, :2][indices] if largest == 0 else frame[~largest][:, :2]
-    keypoints2 = frame[largest][:, :2][indices] if largest == 1 else frame[~largest][:, :2]
+    if largest == 0:
+        keypoints1, keypoints2 = frame[0][:, :2][indices], frame[1][:, :2]
+    else:
+        keypoints1, keypoints2 = frame[0][:, :2], frame[1][:, :2][indices]
+
 
     # Falta meter as imagens lado a lado para ver melhor(está a funcionar bem) 
-    """ # Display the pairs
-    print('Keypoint Pairs:')
+    # Display the pairs
+    """ print('Keypoint Pairs:')
     print('Image 1\tImage 2')
     for i in range(len(keypoints1)):
         print('({:.2f}, {:.2f})\t({:.2f}, {:.2f})'.format(keypoints1[i, 0], keypoints1[i, 1], keypoints2[i, 0], keypoints2[i, 1]))
@@ -73,17 +76,97 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
 
     return homography
 
-def mapHomographies(features):
+def mapHomographies(mapframe: int, seqHomographies: np.ndarray, allHomographies: np.ndarray) -> np.ndarray:
+    """Calculate the homography between each frame and the map"""
 
-    H_prev =np.eye(3)
+    homographies = []
 
-    # feature[0,0]
-    # feature[0,1]
+    for i in range(len(seqHomographies)):
+        M = (i+1)*(i+2)/2
+        #ESTA MAL, NAO ESTAMOS A TIRAR MATRIZ DA HOOMOGRAPHY
+        if i > mapframe:
+            hom = np.dot(mapHomography, np.linalg.inv(allHomographies[int(i*len(seqHomographies)+mapframe-M)]))
+        else:
+            hom = np.dot(mapHomography, allHomographies[int(i*len(seqHomographies)+mapframe-M)])
+
+        homography = np.hstack((np.array([mapframe,i]),hom.flatten()))
+
+        homographies.append(homography)
+
+    return np.array(homographies).T
+
+def allHomographies(seqHomographies: np.ndarray) -> np.ndarray:
+    """Calculate the homography between each pair of frames"""
+
+    homographies = []
+    prev = np.identity(3)
     
-    # for img in features:
+    """
+    [- a b c]
+    [- - d e]
+    [- - - f]
+    [- - - -]
+    
+    
+          map
+           |
+    [0 1 2 3 4 5 6]
+    
+    [- 0 0 1 0 0 0]
+    [- - 0 1 0 0 0]
+    [- - - 1 0 0 0]
+    [- - - - 1 1 1]
+    [- - - - - 0 0]
+    [- - - - - - 0]
+    [- - - - - - -]
 
-def allHomographies(features):
-    pass
+    [01 02 03 04 05 06]
+    [12 13 14 15 16] 
+    [23 24 25 26] 
+    [34 35 36]
+    [45 46] 
+    [56]
+
+    [01 02 03 04 05 06 12 13 14 15 16 23 24 25 26 34 35 36 45 46 56]
+
+    [03 13 23 I 34 35 36]
+    [2 7 11 I 15 16 17]
+    
+    """
+
+    for i in range(len(seqHomographies)-1):
+        prev = seqHomographies[i]
+        for j in range(i+1, len(seqHomographies)):
+            homography = np.hstack((np.array([j,i]),prev.flatten()))
+
+            homographies.append(homography)
+
+            prev = np.dot(seqHomographies[j], prev)
+    
+    return np.array(homographies).T
+
+# def combinations(features: np.ndarray) -> np.ndarray:
+    
+    
+#     pass
+
+def everyHomography(features: np.ndarray) :
+        
+
+    re
+
+
+def sequentialHomographies(features: np.ndarray) -> np.ndarray:
+    """Calculate the homography between each pair of consecutive frames"""
+
+    homographies = []
+
+    for i in range(len(features)-1):
+        homography = findBestHomography(features[i], features[i+1])
+
+        homographies.append(homography)
+            
+    return np.array(homographies)
 
 def main():
     if len(sys.argv) != 2:
@@ -92,14 +175,17 @@ def main():
 
     # Get the configuration file path from the command-line argument
     config_data = Config(sys.argv[1])
+    config_data.show()
 
     features = loadmat(config_data.keypoints_out)['features']
     features = features[0, :]
 
-    if config_data.transforms_type == 'all':
-        allHomographies(features)
-    elif config_data.transforms_type == 'map':
-        mapHomographies(features)
+    seqHomographies = sequentialHomographies(features)
+
+    if config_data.transforms_params == 'all':
+        allHomographies(seqHomographies)
+    elif config_data.transforms_params == 'map':
+        mapHomographies(seqHomographies)
     else:
         print("Transforms type not recognized")
         sys.exit(1)
