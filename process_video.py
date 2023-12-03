@@ -97,7 +97,7 @@ def feature_extraction(img):
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python myprogram.py config_file.cfg")
+        print("Usage: python process_video.py config_file.cfg")
         sys.exit(1)
 
     # Get the configuration file path from the command-line argument
