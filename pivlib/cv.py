@@ -6,10 +6,12 @@ def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray) -> np.ndarray:
     Find the homography matrix using Direct Linear Transform (DLT).
 
     Parameters:
+    -
     - src_pts: Source points, a 2D array of shape (N, 2) representing (x, y) coordinates.
     - dst_pts: Destination points, a 2D array of shape (N, 2) representing (x, y) coordinates.
     
     Returns:
+    -
     - H: Homography matrix, a 3x3 matrix representing the transformation from src_pts to dst_pts.
     """
     # Find homography matrix using Direct Linear Transform (DLT)
@@ -47,11 +49,13 @@ def warpPerspective(src: np.ndarray, H: np.ndarray, dst_size) -> np.ndarray:
     Apply a perspective transformation (warp) to an image using a homography matrix.
 
     Parameters:
+    -
     - src: Source image, a 2D or 3D NumPy array.
     - H: Homography matrix, a 3x3 matrix representing the perspective transformation.
     - dst_size: Size of the destination image, specified as (width, height).
 
     Returns:
+    -
     - dst: Warped image, a 2D or 3D NumPy array.
     """
     # Generate an empty image
@@ -78,6 +82,7 @@ def addWeighted(src1: np.ndarray, alpha: float, src2: np.ndarray, beta: float, g
     Blends two images with specified weights and an optional bias.
 
     Parameters:
+    -
     - src1: First input array (image).
     - alpha: Weight of the first image elements.
     - src2: Second input array (image).
@@ -85,6 +90,7 @@ def addWeighted(src1: np.ndarray, alpha: float, src2: np.ndarray, beta: float, g
     - gamma: Scalar added to each sum (optional, default is 0.0).
 
     Returns:
+    -
     - dst: Resulting blended image.
     """
     # Ensure input arrays have the same shape
@@ -93,17 +99,19 @@ def addWeighted(src1: np.ndarray, alpha: float, src2: np.ndarray, beta: float, g
     # Perform the weighted summation
     return np.clip(src1 * alpha + src2 * beta + gamma, 0, 255).astype(np.uint8)
 
-def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, inlier_threshold: float):
+def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, ransacReprojThreshold: float):
     """
     Find the homography matrix using RANSAC.
 
     Parameters:
+    -
     - src_pts: Source points, a 2D array of shape (N, 2) representing (x, y) coordinates.
     - dst_pts: Destination points, a 2D array of shape (N, 2) representing (x, y) coordinates.
     - n_iter: Number of iterations.
-    - inlier_threshold: Threshold to determine if a point is an inlier.
+    - ransacReprojThreshold: Threshold to determine if a point is an inlier.
 
     Returns:
+    -
     - H: Homography matrix, a 3x3 matrix representing the transformation from src_pts to dst_pts.
     - mask: Mask of inliers, a 1D array of shape (N,) where 1 indicates that the point is an inlier.
     """
@@ -128,7 +136,7 @@ def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, inlier_thresho
         error = np.array(np.linalg.norm(dst_pts_hom - dst_pts_hom_hat, axis=1))
 
         # Compute the number of inliers
-        inliers = error < inlier_threshold
+        inliers = error < ransacReprojThreshold
         num_inliers = np.sum(inliers)
 
         # Update the best homography if the current homography has more inliers
