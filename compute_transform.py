@@ -2,10 +2,11 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import sys
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 from sklearn.neighbors import NearestNeighbors                                                       #the goattt
 from pivlib.cv import ransac, findHomography
 from pivlib.config import Config
+from pivlib.utils import Progress
 
 
 def feature_matching(frame1: np.ndarray, frame2: np.ndarray):
@@ -67,27 +68,29 @@ def feature_matching(frame1: np.ndarray, frame2: np.ndarray):
     return keypoints1, keypoints2
 
 def findBestHomography(features1: np.ndarray, features2: np.ndarray):
+    """ Find the best homography between two sets of keypoints """
+    
     # MATCHING
     keypoints1, keypoints2 = feature_matching(features1.T, features2.T)
     # RANSAC
-    _, inliers = ransac(keypoints1, keypoints2, 100, 0.1)   # 100 iterations, 0.1 threshold --- Sujeito a alteracoes
+    _, inliers = ransac(keypoints1, keypoints2, 100, 10)
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
 
     return homography
 
-def mapHomographies(mapframe: int, seqHomographies: np.ndarray, allHomographies: np.ndarray) -> np.ndarray:
+def mapHomographies(mapHomography: np.ndarray, mapframe: int, everyHomographies) -> np.ndarray:
     """Calculate the homography between each frame and the map"""
 
     homographies = []
-
-    for i in range(len(seqHomographies)):
-        M = (i+1)*(i+2)/2
-        #ESTA MAL, NAO ESTAMOS A TIRAR MATRIZ DA HOOMOGRAPHY
-        if i > mapframe:
-            hom = np.dot(mapHomography, np.linalg.inv(allHomographies[int(i*len(seqHomographies)+mapframe-M)]))
+    for i in range(len(everyHomographies)-1):
+ 
+        if i == mapframe:
+            hom = mapHomography
+        elif i > mapframe:
+            hom = np.dot(mapHomography, np.linalg.inv(everyHomographies[mapframe][i]))
         else:
-            hom = np.dot(mapHomography, allHomographies[int(i*len(seqHomographies)+mapframe-M)])
+            hom = np.dot(mapHomography, everyHomographies[i][mapframe])
 
         homography = np.hstack((np.array([mapframe,i]),hom.flatten()))
 
@@ -106,32 +109,6 @@ def allHomographies(seqHomographies: np.ndarray) -> np.ndarray:
     [- - d e]
     [- - - f]
     [- - - -]
-    
-    
-          map
-           |
-    [0 1 2 3 4 5 6]
-    
-    [- 0 0 1 0 0 0]
-    [- - 0 1 0 0 0]
-    [- - - 1 0 0 0]
-    [- - - - 1 1 1]
-    [- - - - - 0 0]
-    [- - - - - - 0]
-    [- - - - - - -]
-
-    [01 02 03 04 05 06]
-    [12 13 14 15 16] 
-    [23 24 25 26] 
-    [34 35 36]
-    [45 46] 
-    [56]
-
-    [01 02 03 04 05 06 12 13 14 15 16 23 24 25 26 34 35 36 45 46 56]
-
-    [03 13 23 I 34 35 36]
-    [2 7 11 I 15 16 17]
-    
     """
 
     for i in range(len(seqHomographies)-1):
@@ -145,28 +122,35 @@ def allHomographies(seqHomographies: np.ndarray) -> np.ndarray:
     
     return np.array(homographies).T
 
-# def combinations(features: np.ndarray) -> np.ndarray:
+def everyHomography(seqHomographies: np.ndarray):
+    """Calculate the homography between each pair of frames"""
+
+    prev = np.identity(3)
+    homographies = [[None] * (len(seqHomographies)+1)] *  (len(seqHomographies)+1)
     
-    
-#     pass
+    for i in range(len(seqHomographies)-1):
+        prev = seqHomographies[i]
+        for j in range(i+1, len(seqHomographies)):
+            homographies[i][j] = prev
+            prev = np.dot(seqHomographies[j], prev)
 
-def everyHomography(features: np.ndarray) :
-        
-
-    re
-
+    return homographies
 
 def sequentialHomographies(features: np.ndarray) -> np.ndarray:
     """Calculate the homography between each pair of consecutive frames"""
 
     homographies = []
 
+    bar = Progress(len(features)-2, "Sequential:", display_title=True, display_fraction=True)
+    
     for i in range(len(features)-1):
         homography = findBestHomography(features[i], features[i+1])
 
         homographies.append(homography)
+        bar.update(i)
             
     return np.array(homographies)
+
 
 def main():
     if len(sys.argv) != 2:
@@ -180,15 +164,34 @@ def main():
     features = loadmat(config_data.keypoints_out)['features']
     features = features[0, :]
 
+    print(f"Features shape: {features.shape}")
+
     seqHomographies = sequentialHomographies(features)
 
     if config_data.transforms_params == 'all':
-        allHomographies(seqHomographies)
+        print("all")
+        homographies = allHomographies(seqHomographies)
+        print(homographies.shape)
+        print(homographies)
+
     elif config_data.transforms_params == 'map':
-        mapHomographies(seqHomographies)
+        #mapframe = config_data.frame_number[0]
+        #mapHomography = findHomography(config_data.pts_in_frame[:,0], config_data.pts_in_map[:,0])
+        #test with map being the first frame
+        mapframe = 0
+        mapHomography = seqHomographies[0]
+        everyhomography = everyHomography(seqHomographies)
+        homographies = mapHomographies(mapHomography, mapframe, everyhomography)
+    
     else:
         print("Transforms type not recognized")
         sys.exit(1)
+
+    savemat(config_data.transforms_out, {'homographies': homographies})
+    #DONEEEE agora é so testar e encontrar 500 erros ARDEU ARDEU ARDEU
+    #POO TYPE BEAT
+    #o nosso downfall
+    #please write code to save us from this hell
 
 if __name__=='__main__':
     main()
