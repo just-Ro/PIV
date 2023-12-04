@@ -22,7 +22,7 @@ def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray) -> np.ndarray:
     
     # Check if there are at least 4 points to compute the homography
     if len(src_pts) < 4:
-        raise ValueError("More than 4 points are required")
+        raise ValueError("At least 4 points are required")
 
     # Build the matrix A for the homogeneous linear system
     A = []

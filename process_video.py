@@ -65,7 +65,7 @@ def main():
     features = np.empty(int(video.get(cv.CAP_PROP_FRAME_COUNT)/stepsize), dtype='object')
     total_frames = int(video.get(cv.CAP_PROP_FRAME_COUNT))
     
-    bar = Progress(total_frames, "Frames analyzed:", True, False, True, True, 50)
+    bar = Progress(total_frames, "Frames analyzed:", True, True, False, True, True, 20)
     
     while True:
         ret, frame = video.read()
@@ -82,8 +82,6 @@ def main():
 
     video.release()
     cv.destroyAllWindows()
-
-    print(len(features))
 
     savemat(config_data.keypoints_out, {'features': features})
 

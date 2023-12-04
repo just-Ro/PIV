@@ -176,7 +176,7 @@ def compute_every_homography(features: np.ndarray):
         H[i][i] = np.eye(3)
     
     # Initialize progress bar
-    bar = Progress(len(features)-2, "Computing homographies:", True, True, False, True, 50)
+    bar = Progress(len(features)-2, "Computing homographies:", True, True, False, True, True, 20)
     
     # Compute homographies between consecutive feature points
     for i in range(len(features)-1):
@@ -274,11 +274,13 @@ def main():
     # Get the configuration file from the command-line argument
     cfg = Config(sys.argv[1])
 
+    try:
+        features = loadmat(cfg.keypoints_out)['features'][0, :]
+    except FileNotFoundError:
+        print(f"FileNotFoundError: File {cfg.keypoints_out} does not exist")
+        exit(1)
 
-    features = loadmat(cfg.keypoints_out)['features']
-    features = features[0, :]
-
-    print(f"Features shape: {features.shape}")
+    # print(f"Features shape: {features.shape}")
 
     # seqHomographies = sequentialHomographies(features)
 
@@ -301,7 +303,7 @@ def main():
         
         m_i = 0
         map_frame = int(cfg.frame_number[m_i])
-        map_H = findBestHomography(cfg.pts_in_frame[m_i], cfg.pts_in_map[m_i])
+        map_H = findHomography(cfg.pts_in_frame[m_i], cfg.pts_in_map[m_i])
         H = output_map_H(features, map_frame, map_H)
     
     else:
