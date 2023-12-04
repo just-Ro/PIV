@@ -74,6 +74,10 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     keypoints1, keypoints2 = featureMatching(features1.T, features2.T)
     # RANSAC
     _, inliers = ransac(keypoints1, keypoints2, 100, 10)
+    
+    
+
+
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
 
