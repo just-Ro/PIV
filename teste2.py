@@ -1,40 +1,24 @@
 import numpy as np
 
-a = np.array([[1,2,3],[4,5,6],[7,8,9]]).flatten()
-# a = a.reshape(1,3,3)
-print(f"a = {a}")
+features = 10
+
+H = [[0 for i in range(features)] for j in range (features)]
 
 
+for i in range(features-1):
+    # upper triangular diagonal element
+    H[i][i+1] = 1
+    
+    # lower triangular diagonal element
+    H[i+1][i] = -H[i][i+1]
+    
+    # i = 1, j = 0
+    # H02 = H12.H01
+    for j in range(i-1,-1,-1):
+        # upper triangular elements above
+        H[j][i+1] = H[j+1][i+1] + H[j][i]
 
-# print(a)
+        # lower triangular elements to the left
+        H[i+1][j] = H[i+1][j+1] + H[i][j]
 
-# b = np.hstack((np.array([0,0]),a.flatten())).T
-# c = np.array([])
-# c = b
-# c = np.vstack((c,b))
-
-# print("aaaaa")
-# print(c)
-# print("aaaaa")
-# print(f"c.T = {c.T}")
-
-
-d = []
-d.append(np.random.randint(1,10)*a)
-d.append(np.random.randint(1,10)*a)
-d.append(np.random.randint(1,10)*a)
-d = np.array(d).T
-# d = np.reshape(d,(-1,3,3))
-print(f"d[2] = {d[2]}")
-print("d = {}".format(d))
-print("d.shape = {}".format(d.shape))
-
-# #JC
-# g = np.array([])
-# # g = []
-# for i in range(4):
-#     f = np.random.randint(1,10)*a
-#     g = np.append(g,f)
-# print(g)
-# # g = g.reshape(-1, 3, 3)
-# print(g[2])
+print(np.array(H))

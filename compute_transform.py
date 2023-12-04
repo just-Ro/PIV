@@ -9,7 +9,7 @@ from pivlib.config import Config
 from pivlib.utils import Progress
 
 
-def feature_matching(frame1: np.ndarray, frame2: np.ndarray):
+def featureMatching(frame1: np.ndarray, frame2: np.ndarray):
     """
     Find the nearest neighbors between two sets of keypoints.
     Both sets of keypoints must have the same input shape \
@@ -71,7 +71,7 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     """ Find the best homography between two sets of keypoints """
     
     # MATCHING
-    keypoints1, keypoints2 = feature_matching(features1.T, features2.T)
+    keypoints1, keypoints2 = featureMatching(features1.T, features2.T)
     # RANSAC
     _, inliers = ransac(keypoints1, keypoints2, 100, 10)
     # HOMOGRAPHY
@@ -79,6 +79,7 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
 
     return homography
 
+############## DEPRECATED
 def mapHomographies(mapHomography: np.ndarray, mapframe: int, everyHomographies) -> np.ndarray:
     """Calculate the homography between each frame and the map"""
 
@@ -121,7 +122,7 @@ def allHomographies(seqHomographies: np.ndarray) -> np.ndarray:
             prev = np.dot(seqHomographies[j], prev)
     
     return np.array(homographies).T
-
+  
 def everyHomography(seqHomographies: np.ndarray):
     """Calculate the homography between each pair of frames"""
 
@@ -150,44 +151,163 @@ def sequentialHomographies(features: np.ndarray) -> np.ndarray:
         bar.update(i)
             
     return np.array(homographies)
+############## DEPRECATED
 
+
+############## UPDATED
+def compute_every_homography(features: np.ndarray):
+    """
+    Compute homographies between consecutive feature points.
+
+    Parameters:
+    -
+    - features: An array of feature points, where each row represents
+      a feature point and each column represents its coordinates and descriptors.
+
+    Returns:
+    -
+    - H: A list of 2D arrays where each element represents a matrix H_ij
+      representing the homography from feature point i to feature point j.
+    """
+    
+    # Initialize H and fill diagonal with identity matrices
+    H = [[np.empty((3, 3)) for i in range(len(features))] for j in range(len(features))]
+    for i in range(len(H)):
+        H[i][i] = np.eye(3)
+    
+    # Initialize progress bar
+    bar = Progress(len(features)-2, "Computing homographies:", True, True, False, True, 50)
+    
+    # Compute homographies between consecutive feature points
+    for i in range(len(features)-1):
+        # Compute the upper triangular diagonal element
+        H[i][i+1] = findBestHomography(features[i], features[i+1])
+        
+        # Compute the lower triangular diagonal element
+        H[i+1][i] = np.linalg.inv(H[i][i+1])
+        
+        for j in range(i-1, -1, -1):  # i=5 => j€[4,3,2,1,0]
+            # Compute upper triangular elements above
+            H[j][i+1] = np.dot(H[j+1][i+1], H[j][i])
+
+            # Compute lower triangular elements to the left
+            H[i+1][j] = np.dot(H[i+1][j+1], H[i][j])
+        
+        bar.update(i)
+            
+    return H
+
+def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.ndarray:
+    """
+    Compute and concatenate homographies from all frames to the map.
+
+    Parameters:
+    -
+    - features: An array of feature points, where each row represents
+      a feature point and each column represents its coordinates and descriptors.
+    - map_frame: Index of the map frame for which homographies are computed.
+    - map_H: Homography matrix representing the transformation from
+      the map frame to the map.
+
+    Returns:
+    -
+    - H: A 2D array where each column represents a flattened form of
+      a homography matrix between the map frame and other feature points.
+      The format of each homography is [map_frame, i, H_mi[0,0], H_mi[0,1], ..., H_mi[2,2]].
+    """
+    
+    # Compute all homographies between feature points
+    all_H = compute_every_homography(features)
+    
+    # Concatenate homographies into a single array
+    H = []
+    for i in range(len(all_H)-1):
+        if i == map_frame:
+            # Use the specified map_H directly for the map frame
+            homography = map_H
+        else:
+            # Compute the homography from the frame to the map
+            homography = np.dot(map_H, all_H[i][map_frame])
+
+        # Create a flattened representation of the homography matrix
+        flattened_H = np.hstack((np.array([map_frame, i]), homography.flatten()))
+        H.append(flattened_H)
+
+    # Convert the list of homographies into a 2D numpy array and transpose
+    return np.array(H).T
+
+def output_all_H(features: np.ndarray) -> np.ndarray:
+    """
+    Compute and concatenate all homographies between pairs of feature points.
+
+    Parameters:
+    -
+    - features: An array of feature points, where each row represents
+      a feature point and each column represents its coordinates and descriptors.
+
+    Returns:
+    -
+    - H: A 2D array where each column represents a flattened form of
+      a homography matrix between pairs of feature points. The format of each
+      homography is [j, i, H_ji[0,0], H_ji[0,1], ..., H_ji[2,2]].
+    """
+    
+    # Compute all homographies between feature points
+    all_H = compute_every_homography(features)
+    
+    # Concatenate homographies into a single array
+    H = []
+    for i in range(len(all_H)-1):
+        for j in range(i+1, len(all_H)):
+            # Create a flattened representation of the homography matrix
+            flat = np.hstack((np.array([j, i]), all_H[j][i].flatten()))
+            H.append(flat)
+
+    # Convert the list of homographies into a 2D numpy array and transpose
+    return np.array(H).T
+############## UPDATED
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python compute_transform.py config_file.cfg")
-        sys.exit(1)
+        raise TypeError("Usage: python compute_transform.py config_file.cfg")
 
-    # Get the configuration file path from the command-line argument
-    config_data = Config(sys.argv[1])
-    config_data.show()
+    # Get the configuration file from the command-line argument
+    cfg = Config(sys.argv[1])
 
-    features = loadmat(config_data.keypoints_out)['features']
+
+    features = loadmat(cfg.keypoints_out)['features']
     features = features[0, :]
 
     print(f"Features shape: {features.shape}")
 
-    seqHomographies = sequentialHomographies(features)
+    # seqHomographies = sequentialHomographies(features)
 
-    if config_data.transforms_params == 'all':
-        print("all")
-        homographies = allHomographies(seqHomographies)
-        print(homographies.shape)
-        print(homographies)
+    if cfg.transforms_params == 'all':
+        # print("all")
+        # H = allHomographies(seqHomographies)
+        # print(H.shape)
+        # print(H)
+        
+        H = output_all_H(features)
 
-    elif config_data.transforms_params == 'map':
-        #mapframe = config_data.frame_number[0]
-        #mapHomography = findHomography(config_data.pts_in_frame[:,0], config_data.pts_in_map[:,0])
-        #test with map being the first frame
-        mapframe = 0
-        mapHomography = seqHomographies[0]
-        everyhomography = everyHomography(seqHomographies)
-        homographies = mapHomographies(mapHomography, mapframe, everyhomography)
+    elif cfg.transforms_params == 'map':
+        # # mapframe = cfg.frame_number[0]
+        # # mapHomography = findHomography(cfg.pts_in_frame[:,0], cfg.pts_in_map[:,0])
+        # # test with map being the first frame
+        # mapframe = 0
+        # mapHomography = seqHomographies[0]
+        # everyhomography = everyHomography(seqHomographies)
+        # H = mapHomographies(mapHomography, mapframe, everyhomography)
+        
+        m_i = 0
+        map_frame = int(cfg.frame_number[m_i])
+        map_H = findBestHomography(cfg.pts_in_frame[m_i], cfg.pts_in_map[m_i])
+        H = output_map_H(features, map_frame, map_H)
     
     else:
-        print("Transforms type not recognized")
-        sys.exit(1)
+        raise TypeError("Transforms type not recognized")
 
-    savemat(config_data.transforms_out, {'homographies': homographies})
+    savemat(cfg.transforms_out, {'homographies': H})
     #DONEEEE agora é so testar e encontrar 500 erros ARDEU ARDEU ARDEU
     #POO TYPE BEAT
     #o nosso downfall
