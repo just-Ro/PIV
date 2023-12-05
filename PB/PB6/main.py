@@ -91,6 +91,36 @@ def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, inlier_thresho
     # Return the best homography and the mask of inliers
     return best_H, best_mask
 
+def warpPerspective(src: np.ndarray, H: np.ndarray, dst_size) -> np.ndarray:
+    """
+    Apply a perspective transformation (warp) to an image using a homography matrix.
+
+    Parameters:
+    - src: Source image, a 2D or 3D NumPy array.
+    - H: Homography matrix, a 3x3 matrix representing the perspective transformation.
+    - dst_size: Size of the destination image, specified as (width, height).
+
+    Returns:
+    - dst: Warped image, a 2D or 3D NumPy array.
+    """
+    # Generate an empty image
+    width, height = dst_size
+    channel = src.shape[2] if src.ndim > 2 else 1
+    dst = np.zeros((height, width, channel), dtype=src.dtype)
+    
+    # Iterate over the destination image
+    for qy in range(height):
+        for qx in range(width):
+            # Calculate the inverse mapping using the homography matrix H
+            p = np.dot(np.linalg.inv(H), [qx, qy, 1])
+            
+            px, py = int(p[0]/p[-1] + 0.5), int(p[1]/p[-1] + 0.5)
+            
+            # Check if the source pixel is within bounds
+            if px >= 0 and py >= 0 and px < src.shape[1] and py < src.shape[0]:
+                dst[qy, qx] = src[py, px]
+    
+    return dst
 
 mat_file = scipy.io.loadmat('PB\PB6\Class6_ransac\keypoint_pairs.mat')
 
@@ -108,7 +138,9 @@ v1 = np.array(mat_file['V1']).flatten()
 u2 = np.array(mat_file['U2']).flatten()
 v2 = np.array(mat_file['V2']).flatten()
 
-print(np.shape(u1))
+# Create a list of corresponding points
+points1 = np.array([u1, v1]).T
+points2 = np.array([u2, v2]).T
 
 # Display both images side by side and use the keypoint pairs to draw lines between them
 
@@ -123,61 +155,55 @@ concatenated_image = np.zeros((max(image1.shape[0], image2.shape[0]), image1.sha
 concatenated_image[:image1.shape[0], :image1.shape[1]] = image1
 concatenated_image[:image2.shape[0], image1.shape[1]:] = image2
 
-# Draw lines between corresponding keypoints
-for x1, y1, x2, y2 in zip(u1, v1, u2, v2):
-    # Shift the x-coordinate for the second image since it's concatenated next to the first image
-    x2 += image1.shape[1]
-    cv2.line(concatenated_image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)  # Green line
-
-# Display the concatenated image with lines
-# cv2.imshow('Concatenated Image with Lines', concatenated_image)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
-
 # Compute the homography using RANSAC
-# Create a list of corresponding points
-points1 = np.array([u1, v1]).T
-points2 = np.array([u2, v2]).T
-
-print(np.shape(points1))
-print(points1)
-
-# Compute the homography using RANSAC
-homography, mask = ransac(points1, points2, n_iter=1000, inlier_threshold=10)
+homography, mask = ransac(points2, points1, n_iter=1000, inlier_threshold=10)
 
 src_pts = points1[mask]
 dst_pts = points2[mask]
 
 # Compute the homography matrix using the 4 points
-H = findHomography(src_pts, dst_pts)
-
-# Compute the error using all points
-src_pts_hom = np.hstack((src_pts, np.ones((len(src_pts), 1))))
-dst_pts_hom = np.hstack((dst_pts, np.ones((len(dst_pts), 1))))
-dst_pts_hom_hat = np.dot(H, src_pts_hom.T).T
+H = findHomography(dst_pts, src_pts)
 
 mask = np.bool_(mask.flatten())
-print(mask.shape)
 
-# Print the mask
-print("\nMask:")
-print(mask)
+# Draw lines between corresponding keypoints
+for p1, p2 in zip(points1, points2):
+    # Shift the x-coordinate for the second image since it's concatenated next to the first image
+    p2[0] += image1.shape[1]
+    plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='green', linewidth=1)
+
+# Show the concatenated image with lines
+plt.imshow(concatenated_image)
+plt.show()
 
 # Draw the inliers (which are the points that were used to compute the homography)
 inlier_image = concatenated_image.copy()
 
-for p1, p2 in zip(points1[mask], points2[mask]):
+for p1, p2 in zip(src_pts, dst_pts):
     p2[0] += image1.shape[1]
     # Draw a circle at each inlier
-    cv2.circle(inlier_image, tuple(map(int,p1)), 5, (0, 0, 255), -1)  # Red circle
-    cv2.circle(inlier_image, tuple(map(int,p2)), 5, (0, 0, 255), -1)  # Red circle
-
+    plt.scatter(*p1, color='red')
+    plt.scatter(*p2, color='red')
+    
     # Draw a line between the inliers
-    cv2.line(inlier_image, tuple(map(int,p1)), tuple(map(int,p2)), (0, 0, 255), 1)  # Red line
+    plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='red', linewidth=1)
 
-# Display the image with the inliers
-cv2.imshow('Image with Inliers', inlier_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# Show the image with inliers
+plt.imshow(inlier_image)
+plt.show()
+
+print(image2.shape[:2][::-1])
+
+dst = warpPerspective(image2, H, image2.shape[:2][::-1])
+# Draw the transformed image side by side with the first image
+with_transform = concatenated_image.copy()
+
+# Copy the transformed image into the empty space
+with_transform[:image1.shape[0], :image1.shape[1]] = image1
+with_transform[:dst.shape[0], dst.shape[1]:] = dst
+
+# Show the concatenated image with lines
+plt.imshow(with_transform)
+plt.show()
 
 exit()

@@ -7,6 +7,7 @@ from sklearn.neighbors import NearestNeighbors                                  
 from pivlib.cv import ransac, findHomography
 from pivlib.config import Config
 from pivlib.utils import Progress
+from pivlib.utils import showTransformations
 
 
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray):
@@ -67,7 +68,7 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray):
 
     return keypoints1, keypoints2
 
-def findBestHomography(features1: np.ndarray, features2: np.ndarray):
+def findBestHomography(frame_number: int, features1: np.ndarray, features2: np.ndarray):
     """ Find the best homography between two sets of keypoints """
     
     # MATCHING
@@ -75,11 +76,10 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     # RANSAC
     _, inliers = ransac(keypoints1, keypoints2, 100, 10)
     
-    
-
-
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
+
+    showTransformations(frame_number, homography, features1, features2, inliers)
 
     return homography
 
@@ -126,7 +126,6 @@ def allHomographies(seqHomographies: np.ndarray) -> np.ndarray:
             prev = np.dot(seqHomographies[j], prev)
     
     return np.array(homographies).T
-  
 def everyHomography(seqHomographies: np.ndarray):
     """Calculate the homography between each pair of frames"""
 
@@ -185,7 +184,7 @@ def compute_every_homography(features: np.ndarray):
     # Compute homographies between consecutive feature points
     for i in range(len(features)-1):
         # Compute the upper triangular diagonal element
-        H[i][i+1] = findBestHomography(features[i], features[i+1])
+        H[i][i+1] = findBestHomography(i, features[i], features[i+1])
         
         # Compute the lower triangular diagonal element
         H[i+1][i] = np.linalg.inv(H[i][i+1])

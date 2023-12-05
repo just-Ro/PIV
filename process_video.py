@@ -63,6 +63,7 @@ def main():
 
     counter = 0
     features = np.empty(int(video.get(cv.CAP_PROP_FRAME_COUNT)/stepsize), dtype='object')
+    used_frames = np.empty(int(video.get(cv.CAP_PROP_FRAME_COUNT)/stepsize), dtype='object')
     total_frames = int(video.get(cv.CAP_PROP_FRAME_COUNT))
     
     bar = Progress(total_frames, "Frames analyzed:", True, True, False, True, True, 20)
@@ -77,13 +78,14 @@ def main():
         counter += 1
         if (counter % stepsize) == 0:
             features[int(counter/stepsize)-1] = feature_extraction(frame)
-
+            used_frames[int(counter/stepsize)-1] = frame
         bar.update(counter)
 
     video.release()
     cv.destroyAllWindows()
 
     savemat(config_data.keypoints_out, {'features': features})
+    savemat("frames.mat", {'frames': used_frames})
 
 if __name__=='__main__':
     main()
