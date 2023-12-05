@@ -68,7 +68,7 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray):
 
     return keypoints1, keypoints2
 
-def findBestHomography(frame_number: int, features1: np.ndarray, features2: np.ndarray):
+def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     """ Find the best homography between two sets of keypoints """
     
     # MATCHING
@@ -79,85 +79,8 @@ def findBestHomography(frame_number: int, features1: np.ndarray, features2: np.n
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
 
-    showTransformations(frame_number, homography, features1, features2, inliers)
+    return homography, inliers
 
-    return homography
-
-############## DEPRECATED
-def mapHomographies(mapHomography: np.ndarray, mapframe: int, everyHomographies) -> np.ndarray:
-    """Calculate the homography between each frame and the map"""
-
-    homographies = []
-    for i in range(len(everyHomographies)-1):
- 
-        if i == mapframe:
-            hom = mapHomography
-        elif i > mapframe:
-            hom = np.dot(mapHomography, np.linalg.inv(everyHomographies[mapframe][i]))
-        else:
-            hom = np.dot(mapHomography, everyHomographies[i][mapframe])
-
-        homography = np.hstack((np.array([mapframe,i]),hom.flatten()))
-
-        homographies.append(homography)
-
-    return np.array(homographies).T
-
-def allHomographies(seqHomographies: np.ndarray) -> np.ndarray:
-    """Calculate the homography between each pair of frames"""
-
-    homographies = []
-    prev = np.identity(3)
-    
-    """
-    [- a b c]
-    [- - d e]
-    [- - - f]
-    [- - - -]
-    """
-
-    for i in range(len(seqHomographies)-1):
-        prev = seqHomographies[i]
-        for j in range(i+1, len(seqHomographies)):
-            homography = np.hstack((np.array([j,i]),prev.flatten()))
-
-            homographies.append(homography)
-
-            prev = np.dot(seqHomographies[j], prev)
-    
-    return np.array(homographies).T
-def everyHomography(seqHomographies: np.ndarray):
-    """Calculate the homography between each pair of frames"""
-
-    prev = np.identity(3)
-    homographies = [[None] * (len(seqHomographies)+1)] *  (len(seqHomographies)+1)
-    
-    for i in range(len(seqHomographies)-1):
-        prev = seqHomographies[i]
-        for j in range(i+1, len(seqHomographies)):
-            homographies[i][j] = prev
-            prev = np.dot(seqHomographies[j], prev)
-
-    return homographies
-
-def sequentialHomographies(features: np.ndarray) -> np.ndarray:
-    """Calculate the homography between each pair of consecutive frames"""
-
-    homographies = []
-
-    bar = Progress(len(features)-2, "Sequential:", display_title=True, display_fraction=True)
-    
-    for i in range(len(features)-1):
-        homography = findBestHomography(features[i], features[i+1])
-
-        homographies.append(homography)
-        bar.update(i)
-            
-    return np.array(homographies)
-############## DEPRECATED
-
-
-############## UPDATED
 def compute_every_homography(features: np.ndarray):
     """
     Compute homographies between consecutive feature points.
@@ -184,8 +107,10 @@ def compute_every_homography(features: np.ndarray):
     # Compute homographies between consecutive feature points
     for i in range(len(features)-1):
         # Compute the upper triangular diagonal element
-        H[i][i+1] = findBestHomography(i, features[i], features[i+1])
-        
+        H[i][i+1], inliers = findBestHomography(features[i], features[i+1])
+
+        showTransformations(i, H[i][i+1], features[i], features[i+1], inliers)
+
         # Compute the lower triangular diagonal element
         H[i+1][i] = np.linalg.inv(H[i][i+1])
         
@@ -268,7 +193,6 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
 
     # Convert the list of homographies into a 2D numpy array and transpose
     return np.array(H).T
-############## UPDATED
 
 def main():
     if len(sys.argv) != 2:
