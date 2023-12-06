@@ -169,10 +169,11 @@ def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, ransacReprojTh
     # Return the best homography and the mask of inliers
     return best_H, best_mask
 
-def stitch(img1: np.ndarray, img2: np.ndarray, H: np.ndarray) -> np.ndarray:
+############## UNTESTED (made by copilot) ##############
+def warpAndStitch(img1: np.ndarray, img2: np.ndarray, H: np.ndarray) -> np.ndarray:
     """
-    Stitch two images together using a homography matrix.
-
+    Warp and stitch two images using a homography matrix.
+    
     Parameters:
     -
     - img1: First image, a 2D or 3D NumPy array.
@@ -183,11 +184,42 @@ def stitch(img1: np.ndarray, img2: np.ndarray, H: np.ndarray) -> np.ndarray:
     -
     - img: Stitched image, a 2D or 3D NumPy array.
     """
-    # Warp the first image to the second image
-    img1_warped = warpPerspective(img1, H, img2.shape[:2])
-
+    
+    
+    
+    # Get the dimensions of the images
+    width1, height1 = img1.shape[:2]
+    width2, height2 = img2.shape[:2]
+    
+    # Get the corners of the images
+    corners1 = np.array([[0, 0], [0, height1], [width1, height1], [width1, 0]])
+    corners2 = np.array([[0, 0], [0, height2], [width2, height2], [width2, 0]])
+    
+    # Warp the corners of the images to find their positions in the stitched image
+    corners1_warped = np.dot(H, np.hstack((corners1, np.ones((4, 1))))).T
+    corners1_warped = corners1_warped[:, :2] / corners1_warped[:, 2:]
+    
+    # Find the minimum and maximum x and y coordinates of the warped corners
+    x_min = int(np.min(corners1_warped[:, 0]))
+    x_max = int(np.max(corners1_warped[:, 0]))
+    y_min = int(np.min(corners1_warped[:, 1]))
+    y_max = int(np.max(corners1_warped[:, 1]))
+    
+    # Compute the size of the stitched image
+    width = x_max - x_min
+    height = y_max - y_min
+    
+    # Compute the translation matrix to shift the image
+    T = np.array([[1, 0, -x_min], [0, 1, -y_min], [0, 0, 1]])
+    
+    # Warp the first image
+    img1_warped = warpPerspective(img1, np.dot(T, H), (width, height))
+    
+    # Warp the second image
+    img2_warped = warpPerspective(img2, T, (width, height))
+    
     # Blend the two images
-    img = addWeighted(img1_warped, 0.5, img2, 0.5)
+    img = addWeighted(img1_warped, 0.5, img2_warped, 0.5)
 
     return img
 
