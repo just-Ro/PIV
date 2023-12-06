@@ -1,6 +1,27 @@
 import numpy as np
 
 
+def pad(img: np.ndarray, left_border: int=0, right_border: int=0, top_border: int=0, bottom_border: int=0) -> np.ndarray:
+    """
+    Add borders to an image.
+    
+    Parameters:
+    -
+    - img: Image, a 2D or 3D NumPy array.
+    - left_border: Width of the left border.
+    - right_border: Width of the right border.
+    - top_border: Height of the top border.
+    - bottom_border: Height of the bottom border.
+    
+    Returns:
+    -
+    - img: Image with borders, a 2D or 3D NumPy array.
+    """
+    # Add borders to the image
+    img = np.pad(img, ((top_border, bottom_border), (left_border, right_border), (0, 0)), mode="constant")
+    
+    return img
+
 def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray) -> np.ndarray:
     """
     Find the homography matrix using Direct Linear Transform (DLT).
@@ -147,4 +168,26 @@ def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, ransacReprojTh
 
     # Return the best homography and the mask of inliers
     return best_H, best_mask
+
+def stitch(img1: np.ndarray, img2: np.ndarray, H: np.ndarray) -> np.ndarray:
+    """
+    Stitch two images together using a homography matrix.
+
+    Parameters:
+    -
+    - img1: First image, a 2D or 3D NumPy array.
+    - img2: Second image, a 2D or 3D NumPy array.
+    - H: Homography matrix, a 3x3 matrix representing the transformation from img1 to img2.
+
+    Returns:
+    -
+    - img: Stitched image, a 2D or 3D NumPy array.
+    """
+    # Warp the first image to the second image
+    img1_warped = warpPerspective(img1, H, img2.shape[:2])
+
+    # Blend the two images
+    img = addWeighted(img1_warped, 0.5, img2, 0.5)
+
+    return img
 
