@@ -2,6 +2,7 @@ import time
 import numpy as np
 import scipy.io
 import matplotlib.pyplot as plt
+from pivlib.cv import warpPerspective, warpAndStitch
 
 class Progress():
     """
@@ -115,49 +116,43 @@ class Progress():
         if iteration == self.goal:
             print()
 
-def warpPerspective(src: np.ndarray, H: np.ndarray, dst_size) -> np.ndarray:
+def addWeighted(src1: np.ndarray, alpha: float, src2: np.ndarray, beta: float, gamma: float = 0.0) -> np.ndarray:
     """
-    Apply a perspective transformation (warp) to an image using a homography matrix.
+    Blends two images with specified weights and an optional bias.
 
     Parameters:
-    - src: Source image, a 2D or 3D NumPy array.
-    - H: Homography matrix, a 3x3 matrix representing the perspective transformation.
-    - dst_size: Size of the destination image, specified as (width, height).
+    -
+    - src1: First input array (image).
+    - alpha: Weight of the first image elements.
+    - src2: Second input array (image).
+    - beta: Weight of the second image elements.
+    - gamma: Scalar added to each sum (optional, default is 0.0).
 
     Returns:
-    - dst: Warped image, a 2D or 3D NumPy array.
+    -
+    - dst: Resulting blended image.
     """
-    # Generate an empty image
-    width, height = dst_size
-    channel = src.shape[2] if src.ndim > 2 else 1
-    dst = np.zeros((height, width, channel), dtype=src.dtype)
-    
-    # Iterate over the destination image
-    for qy in range(height):
-        for qx in range(width):
-            # Calculate the inverse mapping using the homography matrix H
-            p = np.dot(np.linalg.inv(H), [qx, qy, 1])
-            
-            px, py = int(p[0]/p[-1] + 0.5), int(p[1]/p[-1] + 0.5)
-            
-            # Check if the source pixel is within bounds
-            if px >= 0 and py >= 0 and px < src.shape[1] and py < src.shape[0]:
-                dst[qy, qx] = src[py, px]
-    
-    return dst
+    # Ensure input arrays have the same shape
+    assert src1.shape == src2.shape, "Input images must have the same shape"
 
-def showTransformations(frame_number: int, homography: np.ndarray, features1: np.ndarray, features2: np.ndarray, mask: np.ndarray):
+    # Perform the weighted summation
+    return np.clip(src1 * alpha + src2 * beta + gamma, 0, 255).astype(np.uint8)
+
+def showTransformations(frame_number: int, homography: np.ndarray, features1: np.ndarray, features2: np.ndarray, keypoints1: np.ndarray, keypoints2: np.ndarray, mask: np.ndarray):
     """
     Displays the transformations between both pictures.
     """
     # Load the video
-    mat_file = scipy.io.loadmat("used_frames.mat")
+    mat_file = scipy.io.loadmat("frames.mat")
 
     # Print the keys (variable names) in the MATLAB file
     print("Variables in the MATLAB file:")
     print(mat_file.keys())
 
     frames = np.array(mat_file['frames'])
+    frames = frames.reshape(-1,)
+    print(f"frames.shape = {frames.shape}")
+
     image1 = frames[frame_number]
     image2 = frames[frame_number + 1]
     # Create an empty image to concatenate the two images side by side
@@ -165,10 +160,13 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
 
     # Copy the images into the concatenated image
     concatenated_image[:image1.shape[0], :image1.shape[1]] = image1
-    concatenated_image[:image2.shape[0], image1.shape[1]:] = image2
+    concatenated_image[:image2.shape[0], image2.shape[1]:] = image2
+
+    features1 = features1.T
+    features2 = features2.T
 
     # Draw lines between corresponding keypoints
-    for p1, p2 in zip(features1, features2):
+    for p1, p2 in zip(features1[:, :2], features2[:, :2]):
         # Shift the x-coordinate for the second image since it's concatenated next to the first image
         p2[0] += image1.shape[1]
         plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='green', linewidth=1)
@@ -180,10 +178,16 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
     # Draw the inliers (which are the points that were used to compute the homography)
     inlier_image = concatenated_image.copy()
 
-    src_pts = features1[mask]
-    dst_pts = features2[mask]
+    print(f"mask={mask}")
+    print(f"mask.shape = {mask.shape}")
+    print(f"keypoints1.shape = {keypoints1.shape}")
+    print(f"keypoints2.shape = {keypoints2.shape}")
+
+    src_pts = keypoints1
+    dst_pts = keypoints2
 
     for p1, p2 in zip(src_pts, dst_pts):
+        p2[0] += image1.shape[1]
         # Draw a circle at each inlier
         plt.scatter(*p1, color='red')
         plt.scatter(*p2, color='red')
@@ -195,6 +199,7 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
     plt.imshow(inlier_image)
     plt.show()
 
+    print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
     dst = warpPerspective(image2, homography, image2.shape[:2][::-1])
     # Draw the transformed image side by side with the first image
     with_transform = concatenated_image.copy()
@@ -207,4 +212,8 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
     plt.imshow(with_transform)
     plt.show()
 
+    img = addWeighted(image1, 0.5, dst, beta=0.5)
+    # Show the concatenated image with lines
+    plt.imshow(img)
+    plt.show()
     exit()

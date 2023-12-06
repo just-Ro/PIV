@@ -65,7 +65,6 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray):
     plt.ylabel('Feature 2')
     plt.show() """
 
-
     return keypoints1, keypoints2
 
 def findBestHomography(features1: np.ndarray, features2: np.ndarray):
@@ -75,11 +74,14 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     keypoints1, keypoints2 = featureMatching(features1.T, features2.T)
     # RANSAC
     _, inliers = ransac(keypoints1, keypoints2, 100, 10)
-    
+    #   0.000001
+    print(f"inliers shape {inliers.shape}")
+    print(f"Number of inliers: {sum(inliers)}")
+
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
 
-    return homography, inliers
+    return homography, inliers, keypoints1[inliers], keypoints2[inliers]
 
 def compute_every_homography(features: np.ndarray):
     """
@@ -107,9 +109,9 @@ def compute_every_homography(features: np.ndarray):
     # Compute homographies between consecutive feature points
     for i in range(len(features)-1):
         # Compute the upper triangular diagonal element
-        H[i][i+1], inliers = findBestHomography(features[i], features[i+1])
+        H[i][i+1], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
 
-        showTransformations(i, H[i][i+1], features[i], features[i+1], inliers)
+        showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
 
         # Compute the lower triangular diagonal element
         H[i+1][i] = np.linalg.inv(H[i][i+1])

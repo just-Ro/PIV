@@ -74,6 +74,15 @@ def main():
         # Break the loop if we have reached the end of the video
         if not ret:
             break
+        
+        # Get the height and width of the image
+        height, _= frame.shape[:2]
+        # Define the region of interest (ROI) for the top half of the image
+        roi = frame[:height//2, :]
+        # Apply Gaussian blur to the ROI
+        blurred_roi = cv.GaussianBlur(roi, (15, 15), 0)
+        # Replace the top half of the original image with the blurred ROI
+        frame[:height//2, :] = blurred_roi
 
         counter += 1
         if (counter % stepsize) == 0:
