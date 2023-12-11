@@ -81,7 +81,7 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     keypoints2 = keypoints2[mask]
 
     # RANSAC
-    _, inliers = ransac(keypoints1, keypoints2, 100, 1000)
+    _, inliers = ransac(keypoints1, keypoints2, 1000, 20)
     
     #print(f"inliers shape {inliers.shape}")
     #print(f"Number of inliers: {sum(inliers)}")

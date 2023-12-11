@@ -2,7 +2,10 @@ import time
 import numpy as np
 import scipy.io
 import matplotlib.pyplot as plt
-from pivlib.cv import warpPerspective, warpAndStitch
+from pivlib.cv import warpAndStitch
+import cv2 as cv
+from cv2 import warpPerspective
+
 
 class Progress():
     """
@@ -162,11 +165,12 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
     concatenated_image[:image1.shape[0], :image1.shape[1]] = image1
     concatenated_image[:image2.shape[0], image2.shape[1]:] = image2
 
-    features1 = features1.T
-    features2 = features2.T
+    features1copy = np.copy(features1).T
+    features2copy = np.copy(features2).T
+
 
     # Draw lines between corresponding keypoints
-    for p1, p2 in zip(features1[:, :2], features2[:, :2]):
+    for p1, p2 in zip(features1copy[:, :2], features2copy[:, :2]):
         # Shift the x-coordinate for the second image since it's concatenated next to the first image
         p2[0] += image1.shape[1]
         plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='green', linewidth=1)
@@ -186,14 +190,18 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
     src_pts = keypoints1
     dst_pts = keypoints2
 
-    for p1, p2 in zip(src_pts, dst_pts):
+    # Generate a list of distinct color codes using the colormap
+    num_colors = len(src_pts)
+    colors = np.random.rand(num_colors, 3)
+    
+    for p1, p2, color in zip(src_pts, dst_pts, colors):
         p2[0] += image1.shape[1]
         # Draw a circle at each inlier
-        plt.scatter(*p1, color='red')
-        plt.scatter(*p2, color='red')
+        plt.scatter(*p1, color=color)
+        plt.scatter(*p2, color=color)
         
         # Draw a line between the inliers
-        plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='red', linewidth=1)
+        plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=color, linewidth=1)
 
     # Show the image with inliers
     plt.imshow(inlier_image)
@@ -201,7 +209,7 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
 
     print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
     dst = warpPerspective(image2, homography, image2.shape[:2][::-1])
-    src = warpPerspective(image1, np.linalg.inv(homography), image1.shape[:2][::-1])
+    #src = warpPerspective(image1, np.linalg.inv(homography), image1.shape[:2][::-1])
     # Draw the transformed image side by side with the first image
     with_transform = concatenated_image.copy()
 
@@ -213,11 +221,10 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
     plt.imshow(with_transform)
     plt.show()
 
-    img = addWeighted(src, 0.5, dst, beta=0.5)
+    img = addWeighted(image1, 0.5, dst, beta=0.5)
     # Show the concatenated image with lines
     plt.imshow(img)
     plt.show()
-    exit()
 
 #function to show homography between 2 frames
 def showHomography(frame_number1: int, frame_number2: int,homography: np.ndarray):
