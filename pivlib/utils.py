@@ -201,6 +201,46 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
 
     print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
     dst = warpPerspective(image2, homography, image2.shape[:2][::-1])
+    src = warpPerspective(image1, np.linalg.inv(homography), image1.shape[:2][::-1])
+    # Draw the transformed image side by side with the first image
+    with_transform = concatenated_image.copy()
+
+    # Copy the transformed image into the empty space
+    with_transform[:image2.shape[0], :image2.shape[1]] = image2
+    with_transform[:dst.shape[0], dst.shape[1]:] = dst
+
+    # Show the concatenated image with lines
+    plt.imshow(with_transform)
+    plt.show()
+
+    img = addWeighted(src, 0.5, dst, beta=0.5)
+    # Show the concatenated image with lines
+    plt.imshow(img)
+    plt.show()
+    exit()
+
+#function to show homography between 2 frames
+def showHomography(frame_number1: int, frame_number2: int,homography: np.ndarray):
+    mat_file = scipy.io.loadmat("frames.mat")
+    # Print the keys (variable names) in the MATLAB file
+    print("Variables in the MATLAB file:")
+    print(mat_file.keys())
+
+    frames = np.array(mat_file['frames'])
+    frames = frames.reshape(-1,)
+    print(f"frames.shape = {frames.shape}")
+
+    image1 = frames[frame_number1]
+    image2 = frames[frame_number2]
+    # Create an empty image to concatenate the two images side by side
+    concatenated_image = np.zeros((max(frames[frame_number1].shape[0], frames[frame_number2].shape[0]), frames[frame_number1].shape[1] + frames[frame_number2].shape[1], 3), dtype=np.uint8)
+
+    # Copy the images into the concatenated image
+    concatenated_image[:image1.shape[0], :image1.shape[1]] = image1
+    concatenated_image[:image2.shape[0], image2.shape[1]:] = image2
+
+    print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
+    dst = warpPerspective(image2, homography, image2.shape[:2][::-1])
     # Draw the transformed image side by side with the first image
     with_transform = concatenated_image.copy()
 
@@ -216,4 +256,3 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
     # Show the concatenated image with lines
     plt.imshow(img)
     plt.show()
-    exit()

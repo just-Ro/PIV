@@ -7,7 +7,7 @@ from sklearn.neighbors import NearestNeighbors                                  
 from pivlib.cv import ransac, findHomography
 from pivlib.config import Config
 from pivlib.utils import Progress
-from pivlib.utils import showTransformations
+from pivlib.utils import showTransformations, showHomography
 
 
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray):
@@ -72,8 +72,16 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     
     # MATCHING
     keypoints1, keypoints2 = featureMatching(features1.T, features2.T)
+
+    #only use keypoints on the bottom half of the image
+    mask = keypoints1[:,1] > 0.5*max(keypoints1[:,1])
+    #add to the mask
+    mask = mask & (keypoints2[:,1] > 0.5*max(keypoints2[:,1]))
+    keypoints1 = keypoints1[mask]
+    keypoints2 = keypoints2[mask]
+
     # RANSAC
-    _, inliers = ransac(keypoints1, keypoints2, 100, 100)
+    _, inliers = ransac(keypoints1, keypoints2, 100, 1000)
     
     #print(f"inliers shape {inliers.shape}")
     #print(f"Number of inliers: {sum(inliers)}")
@@ -111,7 +119,7 @@ def compute_every_homography(features: np.ndarray):
         # Compute the upper triangular diagonal element
         H[i][i+1], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
 
-        # showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
+        showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
 
         # Compute the lower triangular diagonal element
         H[i+1][i] = np.linalg.inv(H[i][i+1])
@@ -124,7 +132,7 @@ def compute_every_homography(features: np.ndarray):
             H[i+1][j] = np.dot(H[i+1][j+1], H[i][j])
         
         bar.update(i)
-            
+    
     return H
 
 def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.ndarray:
@@ -184,6 +192,10 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
     
     # Compute all homographies between feature points
     all_H = compute_every_homography(features)
+
+    #show homography between first and last frame
+    #showHomography(0,len(features)-1,all_H[0][-1])
+    showHomography(0,1,all_H[0][1])
     
     # Concatenate homographies into a single array
     H = []

@@ -7,7 +7,7 @@ from scipy.io import savemat, loadmat
 from pivlib.utils import Progress
 from pivlib.config import Config
 
-stepsize = 50
+stepsize = 1
 
 def feature_extraction(img):
     # Convert the image to grayscale
@@ -80,7 +80,7 @@ def main():
         # Define the region of interest (ROI) for the top half of the image
         roi = frame[:height//2, :]
         # Apply Gaussian blur to the ROI
-        blurred_roi = cv.GaussianBlur(roi, (15, 15), 0)
+        blurred_roi = cv.GaussianBlur(roi, (15, 15), 50)
         # Replace the top half of the original image with the blurred ROI
         frame[:height//2, :] = blurred_roi
 
