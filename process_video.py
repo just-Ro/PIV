@@ -64,7 +64,7 @@ def main():
     features = np.empty(int(video.get(cv.CAP_PROP_FRAME_COUNT)/stepsize), dtype='object')
     used_frames = np.empty(int(video.get(cv.CAP_PROP_FRAME_COUNT)/stepsize), dtype='object')
     total_frames = int(video.get(cv.CAP_PROP_FRAME_COUNT))
-    
+
     bar = Progress(total_frames, "Frames analyzed:", True, True, False, True, True, 20)
     
     while True:
@@ -74,14 +74,19 @@ def main():
         if not ret:
             break
         
-        # Get the height and width of the image
+        """ # Get the height and width of the image
         height, _= frame.shape[:2]
         # Define the region of interest (ROI) for the top half of the image
         roi = frame[:height//2, :]
         # Apply Gaussian blur to the ROI
         blurred_roi = cv.GaussianBlur(roi, (15, 15), 50)
         # Replace the top half of the original image with the blurred ROI
-        frame[:height//2, :] = blurred_roi
+        frame[:height//2, :] = blurred_roi """
+
+        # Apply Gaussian blur to all the image
+        blurred_frame = cv.GaussianBlur(frame, (15, 15), 50)
+        # Replace the original image with the blurred image
+        frame = blurred_frame
 
         counter += 1
         if (counter % stepsize) == 0:
