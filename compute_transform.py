@@ -80,11 +80,18 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     keypoints1 = keypoints1[mask]
     keypoints2 = keypoints2[mask]
 
-    # RANSAC
-    _, inliers = ransac(keypoints1, keypoints2, 1000, 20)
-    
-    #print(f"inliers shape {inliers.shape}")
-    #print(f"Number of inliers: {sum(inliers)}")
+    threshold = 1
+    inliers = np.zeros(len(keypoints1), dtype=bool)
+    print(f"Number of inliers: {sum(inliers)}")
+    while sum(inliers) < 20 or sum(inliers) > 40:
+        if sum(inliers) < 10:
+            threshold = threshold*10
+        else:
+            threshold = threshold/10
+        # RANSAC
+        _, inliers = ransac(keypoints1, keypoints2, 1000, threshold)
+        
+        print(f"Number of inliers: {sum(inliers)}")
 
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])

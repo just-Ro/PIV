@@ -42,7 +42,6 @@ def feature_extraction(img):
 
     features = np.append(keypoints_coord, descriptors, axis=1)
     features = np.transpose(features)
-    #print(features.shape)
 
     return features
 
