@@ -82,8 +82,8 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
 
     threshold = 1
     inliers = np.zeros(len(keypoints1), dtype=bool)
-    print(f"Number of inliers: {sum(inliers)}")
-    while sum(inliers) < 20 or sum(inliers) > 40:
+    #print(f"Number of inliers: {sum(inliers)}")
+    while sum(inliers) < 4 or sum(inliers) > 10:
         if sum(inliers) < 10:
             threshold = threshold*10
         else:
@@ -91,7 +91,7 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
         # RANSAC
         _, inliers = ransac(keypoints1, keypoints2, 1000, threshold)
         
-        print(f"Number of inliers: {sum(inliers)}")
+        #print(f"Number of inliers: {sum(inliers)}")
 
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
@@ -126,7 +126,7 @@ def compute_every_homography(features: np.ndarray):
         # Compute the upper triangular diagonal element
         H[i][i+1], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
 
-        showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
+        #showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
 
         # Compute the lower triangular diagonal element
         H[i+1][i] = np.linalg.inv(H[i][i+1])
@@ -202,7 +202,8 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
 
     #show homography between first and last frame
     #showHomography(0,len(features)-1,all_H[0][-1])
-    showHomography(0,1,all_H[0][1])
+    showHomography(1,10,all_H[1][10])
+
     
     # Concatenate homographies into a single array
     H = []

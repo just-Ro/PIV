@@ -246,6 +246,10 @@ def showHomography(frame_number1: int, frame_number2: int,homography: np.ndarray
     concatenated_image[:image1.shape[0], :image1.shape[1]] = image1
     concatenated_image[:image2.shape[0], image2.shape[1]:] = image2
 
+    #plot both frames
+    plt.imshow(concatenated_image)
+    plt.show()
+
     print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
     dst = warpPerspective(image2, homography, image2.shape[:2][::-1])
     # Draw the transformed image side by side with the first image

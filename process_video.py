@@ -20,7 +20,7 @@ def feature_extraction(img):
     keypoints, descriptors = sift.detectAndCompute(gray_img, None) # type: ignore
 
     # Draw keypoints on the image
-    img_with_keypoints = cv.drawKeypoints(img, keypoints, img, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    img_with_keypoints = cv.drawKeypoints(img, keypoints, img, flags=cv.DRAW_MATCHES_FLAGS_DEFAULT)
 
     # Display the frame with keypoints
     cv.imshow('Frame with Keypoints', img_with_keypoints)

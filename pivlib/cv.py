@@ -18,7 +18,7 @@ def pad(img: np.ndarray, left_border: int=0, right_border: int=0, top_border: in
     - img: Image with borders, a 2D or 3D NumPy array.
     """
     # Add borders to the image
-    img = np.pad(img, ((top_border, bottom_border), (left_border, right_border), (0, 0)), mode="constant")
+    img = np.pad(img, ((top_border, bottom_border), (left_border, right_border), (0, 0)), mode="constant") # type: ignore
     
     return img
 
