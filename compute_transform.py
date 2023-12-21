@@ -229,27 +229,10 @@ def main():
         print(f"FileNotFoundError: File {cfg.keypoints_out} does not exist")
         exit(1)
 
-    # print(f"Features shape: {features.shape}")
-
-    # seqHomographies = sequentialHomographies(features)
-
     if cfg.transforms_params == 'all':
-        # print("all")
-        # H = allHomographies(seqHomographies)
-        # print(H.shape)
-        # print(H)
-        
         H = output_all_H(features)
 
     elif cfg.transforms_params == 'map':
-        # # mapframe = cfg.frame_number[0]
-        # # mapHomography = findHomography(cfg.pts_in_frame[:,0], cfg.pts_in_map[:,0])
-        # # test with map being the first frame
-        # mapframe = 0
-        # mapHomography = seqHomographies[0]
-        # everyhomography = everyHomography(seqHomographies)
-        # H = mapHomographies(mapHomography, mapframe, everyhomography)
-        
         m_i = 0
         map_frame = int(cfg.frame_number[m_i])
         map_H = findHomography(cfg.pts_in_frame[m_i], cfg.pts_in_map[m_i])
@@ -259,10 +242,6 @@ def main():
         raise TypeError("Transforms type not recognized")
 
     savemat(cfg.transforms_out, {'homographies': H})
-    #DONEEEE agora é so testar e encontrar 500 erros ARDEU ARDEU ARDEU
-    #POO TYPE BEAT
-    #o nosso downfall
-    #please write code to save us from this hell
 
 if __name__=='__main__':
     main()
