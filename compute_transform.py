@@ -107,7 +107,7 @@ def compute_every_homography(features: np.ndarray):
         # Compute the upper triangular diagonal element
         H[i][i+1], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
 
-        showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
+        #showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
 
         # Compute the lower triangular diagonal element
         H[i+1][i] = np.linalg.inv(H[i][i+1])
@@ -183,7 +183,9 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
 
     #show homography between first and last frame
     #showHomography(0,len(features)-1,all_H[0][-1])
-    showHomography(0,3,all_H[3][0])
+    showHomography(0,1,all_H[1][0])
+    showHomography(0,2,all_H[2][0])
+    showHomography(0,4,all_H[4][0])
 
     # Concatenate homographies into a single array
     H = []
