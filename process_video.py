@@ -7,29 +7,34 @@ from scipy.io import savemat, loadmat
 from pivlib.utils import Progress
 from pivlib.config import Config
 
-stepsize = 1
+STEPSIZE = 20
+FRAME_LIMIT = 6
+DOWNSCALE_FACTOR = 4
 
 def feature_extraction(img):
+    # Make a new image equal to the original image
+    img_copy = img.copy()
+
     # Convert the image to grayscale
-    gray_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    gray_img = cv.cvtColor(img_copy, cv.COLOR_BGR2GRAY, img_copy)
 
     # Create a SIFT object
     sift = cv.SIFT.create()
 
     # detect keypoints and compute descriptors of the image
     keypoints, descriptors = sift.detectAndCompute(gray_img, None) # type: ignore
-
+    
     # Draw keypoints on the image
-    img_with_keypoints = cv.drawKeypoints(img, keypoints, img, flags=cv.DRAW_MATCHES_FLAGS_DEFAULT)
+    img_with_keypoints = cv.drawKeypoints(img_copy, keypoints, img_copy, flags=cv.DRAW_MATCHES_FLAGS_DEFAULT)
 
     # Display the frame with keypoints
     cv.imshow('Frame with Keypoints', img_with_keypoints)
-    cv.waitKey(stepsize)  # Adjust the wait time to control the speed of the video
+    cv.waitKey(STEPSIZE)  # Adjust the wait time to control the speed of the video
     
-    # Display the image with keypoints
-    # plt.imshow(cv.cvtColor(img_with_keypoints, cv.COLOR_BGR2RGB))
-    # plt.axis("off")
-    # plt.show()
+    #Display the image with keypoints
+    #plt.imshow(cv.cvtColor(img_with_keypoints, cv.COLOR_BGR2RGB))
+    #plt.axis("off")
+    #plt.show()
 
     keypoints_coord = []
     # store the keypoints coordinates
@@ -46,60 +51,55 @@ def feature_extraction(img):
     return features
 
 
+def video2array(filepath):
+    cap = cv.VideoCapture(filepath)
+    if not cap.isOpened():
+        print("Error: Could not open video file.")
+        return None
+
+    frames = []
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        frames.append(frame_rgb)
+
+    cap.release()
+    return np.array(frames)
+
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python process_video.py config_file.cfg")
         sys.exit(1)
 
-    # Get the configuration file path from the command-line argument
     config_data = Config(sys.argv[1])
+    video_path = config_data.videos
 
-    # video = cv.VideoCapture(config_data['videos'])
-    video = cv.VideoCapture(config_data.videos)
-    if not video.isOpened():
+    video_array = video2array(video_path)
+    if video_array is None:
         print("Error opening video file")
         exit()
 
-    counter = 0
-    features = np.empty(int(video.get(cv.CAP_PROP_FRAME_COUNT)/stepsize), dtype='object')
-    used_frames = np.empty(int(video.get(cv.CAP_PROP_FRAME_COUNT)/stepsize), dtype='object')
-    total_frames = int(video.get(cv.CAP_PROP_FRAME_COUNT))
+    num_frames = min(int(video_array.shape[0] / STEPSIZE), FRAME_LIMIT)
+    features = np.empty(num_frames, dtype='object')
+    used_frames = np.empty(num_frames, dtype='object')
 
-    bar = Progress(total_frames, "Frames analyzed:", True, True, False, True, True, 20)
-    
-    while True:
-        ret, frame = video.read()
-        
-        # Break the loop if we have reached the end of the video
-        if not ret:
-            break
-        
-        """ # Get the height and width of the image
-        height, _= frame.shape[:2]
-        # Define the region of interest (ROI) for the top half of the image
-        roi = frame[:height//2, :]
-        # Apply Gaussian blur to the ROI
-        blurred_roi = cv.GaussianBlur(roi, (15, 15), 50)
-        # Replace the top half of the original image with the blurred ROI
-        frame[:height//2, :] = blurred_roi """
+    bar = Progress(num_frames, "Frames analyzed:", True, True, False, True, True, 20)
 
-        # Apply Gaussian blur to all the image
-        blurred_frame = cv.GaussianBlur(frame, (15, 15), 50)
-        # Replace the original image with the blurred image
-        frame = blurred_frame
+    for i in range(num_frames):
+        frame = video_array[i * STEPSIZE]
+        frame = cv.resize(frame, (0, 0), fx=1 / DOWNSCALE_FACTOR, fy=1 / DOWNSCALE_FACTOR)
+        used_frames[i] = frame
+        features[i] = feature_extraction(frame)
+        bar.update(i+1)
 
-        counter += 1
-        if (counter % stepsize) == 0:
-            features[int(counter/stepsize)-1] = feature_extraction(frame)
-            used_frames[int(counter/stepsize)-1] = frame
-        bar.update(counter)
-
-    video.release()
     cv.destroyAllWindows()
 
     savemat(config_data.keypoints_out, {'features': features})
-    savemat("frames.mat", {'frames': used_frames})
+    savemat("output/frames.mat", {'frames': used_frames})
+
 
 if __name__=='__main__':
     main()
-    

@@ -9,6 +9,10 @@ from pivlib.config import Config
 from pivlib.utils import Progress
 from pivlib.utils import showTransformations, showHomography
 
+RANSAC_ITER = 1000
+RANSAC_THRESHOLD = 1
+DISTANCE = 100
+
 
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: float):
     """
@@ -41,15 +45,11 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: 
     print(f"number of matches: {len(indices)}")
 
     # Match largest feature space with smallest feature space indices
-    # Match largest feature space with smallest feature space indices
     if largest == 0:
         keypoints1, keypoints2 = frame[0][:, :2][indices], frame[1][:, :2]
     else:
         keypoints1, keypoints2 = frame[0][:, :2], frame[1][:, :2][indices]
 
-    # print(f"keypoints1: {keypoints1.shape}")
-    # print(f"keypoints2: {keypoints2.shape}")
-    # print(f"distances: {distances.shape}")
     # Filter out matches based on distance
     filteredindices = np.where(distances.flatten() < distance_threshold)[0]
 
@@ -57,55 +57,22 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: 
     filteredindices = filteredindices[filteredindices < len(indices)]
     
     keypoints1, keypoints2 = keypoints1[filteredindices], keypoints2[filteredindices]
+    
+    filtereddistances = distances[filteredindices]
 
-    # Falta meter as imagens lado a lado para ver melhor(está a funcionar bem) 
-    # Display the pairs
-    """ print('Keypoint Pairs:')
-    print('Image 1\tImage 2')
-    for i in range(len(keypoints1)):
-        print('({:.2f}, {:.2f})\t({:.2f}, {:.2f})'.format(keypoints1[i, 0], keypoints1[i, 1], keypoints2[i, 0], keypoints2[i, 1]))
+    std_dev = float(np.std(filtereddistances))
 
-    # Plotting for visualization
-    plt.scatter(frame1[:, 0], frame1[:, 1], label='Keypoints in Image 1', marker='o', color='blue')
-    plt.scatter(frame2[:, 0], frame2[:, 1], label='Keypoints in Image 2', marker='x', color='red')
-
-    # Plot lines between corresponding keypoints
-    for i in range(len(keypoints1)):
-        plt.plot([frame1[i, 0], frame2[i, 0]], [frame1[i, 1], frame2[i, 1]], color='green')
-
-    plt.legend()
-    plt.title('Corresponding Keypoints between Images')
-    plt.xlabel('Feature 1')
-    plt.ylabel('Feature 2')
-    plt.show() """
-
-    return keypoints1, keypoints2
+    return keypoints1, keypoints2, std_dev
 
 def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     """ Find the best homography between two sets of keypoints """
     
     # MATCHING
-    keypoints1, keypoints2 = featureMatching(features1.T, features2.T, 200)
-
-    #only use keypoints on the bottom half of the image
-    mask = keypoints1[:,1] > 0.5*max(keypoints1[:,1])
-    #add to the mask
-    mask = mask & (keypoints2[:,1] > 0.5*max(keypoints2[:,1]))
-    keypoints1 = keypoints1[mask]
-    keypoints2 = keypoints2[mask]
-
-    threshold = 1
+    keypoints1, keypoints2, threshold = featureMatching(features1.T, features2.T, DISTANCE)    
     inliers = np.zeros(len(keypoints1), dtype=bool)
-    #print(f"Number of inliers: {sum(inliers)}")
-    while sum(inliers) < 4 or sum(inliers) > 10:
-        if sum(inliers) < 10:
-            threshold = threshold*10
-        else:
-            threshold = threshold/10
-        # RANSAC
-        _, inliers = ransac(keypoints1, keypoints2, 1000, threshold)
-        
-        #print(f"Number of inliers: {sum(inliers)}")
+
+    # RANSAC
+    _, inliers = ransac(keypoints1, keypoints2, RANSAC_ITER, threshold)
 
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
@@ -140,7 +107,7 @@ def compute_every_homography(features: np.ndarray):
         # Compute the upper triangular diagonal element
         H[i][i+1], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
 
-        #showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
+        showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
 
         # Compute the lower triangular diagonal element
         H[i+1][i] = np.linalg.inv(H[i][i+1])
@@ -216,7 +183,7 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
 
     #show homography between first and last frame
     #showHomography(0,len(features)-1,all_H[0][-1])
-    showHomography(0,1,all_H[0][1])
+    showHomography(0,3,all_H[3][0])
 
     # Concatenate homographies into a single array
     H = []
