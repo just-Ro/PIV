@@ -24,7 +24,7 @@ def feature_extraction(img):
 
     # Display the frame with keypoints
     cv.imshow('Frame with Keypoints', img_with_keypoints)
-    cv.waitKey(stepsize)  # Adjust the wait time to control the speed of the video
+    #cv.waitKey(stepsize)  # Adjust the wait time to control the speed of the video
     
     # Display the image with keypoints
     # plt.imshow(cv.cvtColor(img_with_keypoints, cv.COLOR_BGR2RGB))
@@ -96,13 +96,20 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: 
 
     return keypoints1, keypoints2, std_dev
 
+def triangulatePoints(P0, P1, pts0, pts1):
+    Xs = []
+    for (p, q) in zip(pts0.T, pts1.T):
+        # Solve 'AX = 0'
+        A = np.vstack((p[0] * P0[2] - P0[0], p[1] * P0[2] - P0[1], q[0] * P1[2] - P1[0], q[1] * P1[2] - P1[1]))
+        _, _, Vt = np.linalg.svd(A, full_matrices=True)
+        Xs.append(Vt[-1])
+    return np.vstack(Xs).T
 
 def main():
-    
     # image1 = cv.imread('PCRegistration/rgb_image1_3.png')
     # image2 = cv.imread('PCRegistration/rgb_image2_3.png')
-    image1 = cv.imread('PB/PB8/parede1.jpg')
-    image2 = cv.imread('PB/PB8/parede2.jpg')
+    image1 = cv.imread('PB/PB8/cubo1.jpg')
+    image2 = cv.imread('PB/PB8/cubo2.jpg')
     print(f"image1 shape: {image1}")
     print(f"image2 shape: {image2.shape}")
 
@@ -112,15 +119,15 @@ def main():
     print(f"keypoints1 shape: {keypoints1.shape}")
     print(f"keypoints2 shape: {keypoints2.shape}")
 
-    keypoints1, keypoints2, std_dev = featureMatching(keypoints1.T, keypoints2.T, 10000000000000000)
+    keypoints1, keypoints2, std_dev = featureMatching(keypoints1.T, keypoints2.T, 100)
 
     print(f"MATCHED keypoints1 shape: {keypoints1.shape}")
     print(f"MATCHED keypoints2 shape: {keypoints2.shape}")
 
-    _, inliers = ransac(keypoints1, keypoints2, RANSAC_ITER, 1)
+    # _, inliers = ransac(keypoints1, keypoints2, RANSAC_ITER, 1)
 
-    keypoints1, keypoints2 = keypoints1[inliers], keypoints2[inliers]
-    print(f"number of inliers: {len(keypoints1)}")
+    # keypoints1, keypoints2 = keypoints1[inliers], keypoints2[inliers]
+    # print(f"number of inliers: {len(keypoints1)}")
 
     f, cx, cy = 1000., 320., 240.
     # Estimate relative pose of two view
@@ -133,7 +140,7 @@ def main():
     P0 = K @ np.eye(3, 4, dtype=np.float32)
     Rt = np.hstack((R, t))
     P1 = K @ Rt
-    X_4d = cv.triangulatePoints(P0, P1, keypoints1.T, keypoints2.T)
+    X_4d = triangulatePoints(P0, P1, keypoints1.T, keypoints2.T)
     X = cv.convertPointsFromHomogeneous(X_4d.T).reshape(-1, 3)
 
     fig = plt.figure()
@@ -144,14 +151,9 @@ def main():
     ax.set_xlabel('X Axis')
     ax.set_ylabel('Y Axis')
     ax.legend()
-
     plt.show()
 
-
     print(f"X shape: {X.shape}")
-
-
-
 
     # Write the reconstructed 3D points
     np.savetxt('3d_points.txt', X)

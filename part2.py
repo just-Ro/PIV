@@ -8,22 +8,45 @@ import sys
 STEPSIZE = 1
 FRAME_LIMIT = 3
 
-def video2array(filepath):
+def video2array(filepath, frame_limit=-1, frame_step: int=1):
     cap = cv2.VideoCapture(filepath)
     if not cap.isOpened():
-        print("Error: Could not open video file.")
+        print(f"Error: Could not open video file {filepath}")
         return None
 
     frames = []
+    counter = 0
     while True:
         ret, frame = cap.read()
         if not ret:
             break
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frames.append(frame_rgb)
+        
+        # Check if the current frame should be included
+        if counter % frame_step == 0 and (len(frames) < frame_limit or frame_limit == -1):
+            frames.append(frame_rgb)
+
+        counter += 1
 
     cap.release()
     return np.array(frames)
+
+def import_videos(filepaths, frame_limit=-1, frame_step: int=1):
+    videos = []
+    for path in filepaths:
+        vid = video2array(path, frame_limit, frame_step)
+        if vid is None:
+            print("Error opening video file")
+            exit()
+        videos.append(vid)
+
+    # Check that all videos have the same number of frames
+    if len(set([vid.shape[0] for vid in videos])) != 1:
+        print("Error: Videos have different number of frames")
+        exit()
+    
+    return np.concatenate([arr[np.newaxis, :] for arr in videos], axis=0)
+
 
 def main():
     if len(sys.argv) != 2:
@@ -33,26 +56,9 @@ def main():
     config_data = Config(sys.argv[1])
 
     # Load videos to array
-    videos = np.array([])
-    for path in config_data.videos:
-        vid = video2array(path)
-        if vid is None:
-            print("Error opening video file")
-            exit()
-        videos = np.append(videos, vid)
-
-    # Check if videos are the same size
-    if not np.all(videos.shape == videos[0].shape):
-        print("Error: Videos are not the same size")
-        exit()
+    videos = import_videos(config_data.videos, FRAME_LIMIT, STEPSIZE)
     
-    print(videos.shape)
-    # Select video frames to process
-    for i in range(videos.shape[0]):
-        videos[i] = videos[i][:FRAME_LIMIT*STEPSIZE:STEPSIZE, :, :, :]
-    print(videos.shape)
-        
-    num_frames = min(int(videos.shape[1] / STEPSIZE), FRAME_LIMIT)
+    
 
     #Thigs to do
     #Calibration
