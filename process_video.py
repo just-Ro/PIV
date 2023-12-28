@@ -29,7 +29,7 @@ def feature_extraction(img):
 
     # Display the frame with keypoints
     cv.imshow('Frame with Keypoints', img_with_keypoints)
-    cv.waitKey(STEPSIZE)  # Adjust the wait time to control the speed of the video
+    cv.waitKey(int(STEPSIZE))  # Adjust the wait time to control the speed of the video
     
     #Display the image with keypoints
     #plt.imshow(cv.cvtColor(img_with_keypoints, cv.COLOR_BGR2RGB))
@@ -75,7 +75,7 @@ def main():
         sys.exit(1)
 
     config_data = Config(sys.argv[1])
-    video_path = config_data.videos
+    video_path = config_data.videos[0]
 
     video_array = video2array(video_path)
     if video_array is None:
