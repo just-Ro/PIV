@@ -108,8 +108,8 @@ def triangulatePoints(P0, P1, pts0, pts1):
 def main():
     # image1 = cv.imread('PCRegistration/rgb_image1_3.png')
     # image2 = cv.imread('PCRegistration/rgb_image2_3.png')
-    image1 = cv.imread('PB/PB8/cubo1.jpg')
-    image2 = cv.imread('PB/PB8/cubo2.jpg')
+    image1 = cv.imread('PB/PB8/front.jpg')
+    image2 = cv.imread('PB/PB8/left.jpg')
     print(f"image1 shape: {image1}")
     print(f"image2 shape: {image2.shape}")
 
@@ -123,6 +123,7 @@ def main():
 
     print(f"MATCHED keypoints1 shape: {keypoints1.shape}")
     print(f"MATCHED keypoints2 shape: {keypoints2.shape}")
+    exit()
 
     # _, inliers = ransac(keypoints1, keypoints2, RANSAC_ITER, 1)
 
