@@ -222,4 +222,3 @@ def warpAndStitch(img1: np.ndarray, img2: np.ndarray, H: np.ndarray) -> np.ndarr
     img = addWeighted(img1_warped, 0.5, img2_warped, 0.5)
 
     return img
-

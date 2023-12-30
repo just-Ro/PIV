@@ -228,14 +228,15 @@ def showTransformations(frame_number: int, homography: np.ndarray, features1: np
 
 #function to show homography between 2 frames
 def showHomography(frame_number1: int, frame_number2: int,homography: np.ndarray):
+    plot = "001"
     mat_file = scipy.io.loadmat("output/frames.mat")
     # Print the keys (variable names) in the MATLAB file
-    print("Variables in the MATLAB file:")
-    print(mat_file.keys())
+    # print("Variables in the MATLAB file:")
+    # print(mat_file.keys())
 
     frames = np.array(mat_file['frames'])
     frames = frames.reshape(-1,)
-    print(f"frames.shape = {frames.shape}")
+    # print(f"frames.shape = {frames.shape}")
 
     image1 = frames[frame_number1]
     image2 = frames[frame_number2]
@@ -247,11 +248,12 @@ def showHomography(frame_number1: int, frame_number2: int,homography: np.ndarray
     concatenated_image[:image1.shape[0], :image1.shape[1]] = image1
     concatenated_image[:image2.shape[0], image2.shape[1]:] = image2
 
-    #plot both frames
-    plt.imshow(concatenated_image)
-    plt.show()
+    if plot[0] == "1":
+        plt.title(f"Image {frame_number1} and Image {frame_number2}")
+        plt.imshow(concatenated_image)
+        plt.show()
 
-    print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
+    # print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
     dst = warpPerspective(image2, homography, image2.shape[:2][::-1])
     # Draw the transformed image side by side with the first image
     with_transform = concatenated_image.copy()
@@ -260,12 +262,17 @@ def showHomography(frame_number1: int, frame_number2: int,homography: np.ndarray
     with_transform[:image2.shape[0], :image2.shape[1]] = image2
     with_transform[:dst.shape[0], dst.shape[1]:] = dst
 
-    # Show the concatenated image with lines
-    plt.imshow(with_transform)
-    plt.show()
+    if plot[1] == "1":
+        # Show the concatenated image with lines
+        plt.title(f"Image {frame_number2} warped with homography")
+        plt.imshow(dst)
+        plt.show()
+
 
     img = addWeighted(image1, 0.5, dst, beta=0.5)
-    # Show the concatenated image with lines
-    plt.title("SHOW HOMO - Blended image COM A HOMOGRAPHY")
-    plt.imshow(img)
-    plt.show()
+    
+    if plot[2] == "1":
+        # Show the concatenated image with lines
+        plt.title(f"Image {frame_number1} and Image {frame_number2} blended with homography")
+        plt.imshow(img)
+        plt.show()

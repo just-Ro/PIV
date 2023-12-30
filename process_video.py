@@ -7,8 +7,8 @@ from scipy.io import savemat, loadmat
 from pivlib.utils import Progress
 from pivlib.config import Config
 
-STEPSIZE = 200 * 2
-FRAME_LIMIT = 10000
+STEPSIZE = 1
+FRAME_LIMIT = 50
 DOWNSCALE_FACTOR = 2
 
 def feature_extraction(img):

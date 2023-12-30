@@ -11,8 +11,8 @@ from pivlib.utils import showTransformations, showHomography
 
 RANSAC_ITER = 1000
 RANSAC_THRESHOLD = 1
-DISTANCE = 100
-
+DISTANCE = 1
+# 50
 
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: float):
     """
@@ -42,7 +42,7 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: 
     distances, indices = knn_model.kneighbors(frame[~largest][:,2:], n_neighbors=1)
     indices = indices.flatten()
 
-    print(f"number of matches: {len(indices)}")
+    #print(f"number of matches: {len(indices)}")
 
     # Match largest feature space with smallest feature space indices
     if largest == 0:
@@ -50,18 +50,35 @@ def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: 
     else:
         keypoints1, keypoints2 = frame[0][:, :2], frame[1][:, :2][indices]
 
+    std_dev = float(np.std(distances))
+    increment = 10
+
     # Filter out matches based on distance
     filteredindices = np.where(distances.flatten() < distance_threshold)[0]
 
     # Ensure that indices are within bounds
     filteredindices = filteredindices[filteredindices < len(indices)]
     
+    while len(filteredindices) < 4:
+        distance_threshold += increment
+        
+        if distance_threshold >= 1001:
+            print(f"Warning: Retry limit exceeded. Number of matches: {len(filteredindices)}")
+            return keypoints1, keypoints2, std_dev
+        
+        filteredindices = np.where(distances.flatten() < distance_threshold)[0]
+
+        filteredindices = filteredindices[filteredindices < len(indices)]
+
     keypoints1, keypoints2 = keypoints1[filteredindices], keypoints2[filteredindices]
     
-    filtereddistances = distances[filteredindices]
-
+    filtereddistances = distances[filteredindices]  
+    
     std_dev = float(np.std(filtereddistances))
-
+    if std_dev == 0:
+        std_dev = 0.0001
+    
+    # print(keypoints1.shape, keypoints2.shape, std_dev, filtereddistances.shape, filteredindices.shape)
     return keypoints1, keypoints2, std_dev
 
 def findBestHomography(features1: np.ndarray, features2: np.ndarray):
@@ -100,7 +117,7 @@ def compute_every_homography(features: np.ndarray):
         H[i][i] = np.eye(3)
     
     # Initialize progress bar
-    bar = Progress(len(features)-2, "Computing homographies:", True, True, False, True, True, 20)
+    bar = Progress(len(features)-1, "Computing homographies:", True, True, False, True, True, 20)
     
     # Compute homographies between consecutive feature points
     for i in range(len(features)-1):
@@ -115,11 +132,13 @@ def compute_every_homography(features: np.ndarray):
         for j in range(i-1, -1, -1):  # i=5 => j€[4,3,2,1,0]
             # Compute upper triangular elements above
             H[j][i+1] = np.dot(H[j+1][i+1], H[j][i])
+            # H[j][i+1] = np.dot(H[j][i], H[j+1][i+1])
 
             # Compute lower triangular elements to the left
             H[i+1][j] = np.dot(H[i+1][j+1], H[i][j])
+            # H[i+1][j] = np.dot(H[i][j], H[i+1][j+1])
         
-        bar.update(i)
+        bar.update(i+1)
     
     return H
 
@@ -183,9 +202,16 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
 
     #show homography between first and last frame
     #showHomography(0,len(features)-1,all_H[0][-1])
-    showHomography(0,1,all_H[1][0])
-    showHomography(0,2,all_H[2][0])
-    showHomography(0,4,all_H[4][0])
+    while True:
+        try:
+            frame1 = int(input("Enter frame1: "))
+            frame2 = int(input("Enter frame2: "))
+            if frame1 >= len(features) or frame2 >= len(features):
+                print("Frame number out of bounds")
+                continue
+            showHomography(frame1,frame2,all_H[frame2][frame1])
+        except:
+            break
 
     # Concatenate homographies into a single array
     H = []
