@@ -8,10 +8,12 @@ from scipy.io import loadmat
 
 
 
-STEPSIZE = 1
-#Frame Limit = -1 means no limit
-FRAME_LIMIT = 50
-DOWNSCALE_FACTOR = 2
+# STEPSIZE = 1
+# #Frame Limit = -1 means no limit
+# FRAME_LIMIT = 50
+# DOWNSCALE_FACTOR = 2
+
+from constants import STEPSIZE, FRAME_LIMIT, DOWNSCALE_FACTOR
 
 def video2array(filepath, frame_limit=-1, frame_step: int=1, scale: float=1):
     cap = cv2.VideoCapture(filepath)
@@ -128,12 +130,43 @@ def stitch(frame1, frame2, homography: np.ndarray):
     plt.imshow(img)
     plt.show()
 
+def print_color(text, color):
+    colors = {
+        'RESET': '\033[0m',
+        'BRIGHT': '\033[1m',
+        'DIM': '\033[2m',
+        'RED': '\033[91m',
+        'GREEN': '\033[92m',
+        'YELLOW': '\033[93m',
+        'CYAN': '\033[96m',
+    }
+    print(f"{colors[color]}{text}{colors['RESET']}", end="")
+    return
+
+def menu():
+    print("============================")
+    print("\033[1mChoose what to do: \033[0m")
+    print("show frames ", end="")
+    print_color("[1]\n", 'RED')
+    print("show homography ", end="")
+    print_color("[2]\n", 'GREEN')
+    print("stitch ", end="")
+    print_color("[3]\n", 'CYAN')
+    print("exit ", end="")
+    print_color("[any other key]\n", 'YELLOW')
+    print("============================")
+    print("Input: ", end="")
+
+
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python process_video.py config_file.cfg")
+        print("Usage: python homography_probe.py config_file.cfg")
         sys.exit(1)
 
     cfg = Config(sys.argv[1])
+
+    print("============================")
+    print("\033[1mWELCOME! \033[0m")
 
     # Load videos to array
     videos = import_videos(cfg.videos, FRAME_LIMIT, STEPSIZE, 1/DOWNSCALE_FACTOR, True)
@@ -160,11 +193,13 @@ def main():
         params = homo[2:].reshape(3,3)
         H[int(j)][int(i)] = params
     
-    vid = int(input("Choose video: "))
+    vid = int(input("Choose video: ")) - 1
     vid = videos[vid]
 
     while True:
-        action = str(input("Choose what to do:\nshow frames [1]\nshow homography [2]\nstitch [3]\n> "))
+        menu()
+        action = str(input())
+        #action = str(input("Choose what to do:\nshow frames [1]\nshow homography [2]\nstitch [3]\n> "))
         if action == "1":
             try:
                 print("============================")
@@ -203,6 +238,8 @@ def main():
                 continue
         else:
             break
+
+
 
 if __name__ == "__main__":
     main()

@@ -7,9 +7,10 @@ from scipy.io import savemat, loadmat
 from pivlib.utils import Progress
 from pivlib.config import Config
 
-STEPSIZE = 1
-FRAME_LIMIT = 50
-DOWNSCALE_FACTOR = 2
+# STEPSIZE = 1
+# FRAME_LIMIT = 50
+# DOWNSCALE_FACTOR = 2
+from constants import STEPSIZE, FRAME_LIMIT, DOWNSCALE_FACTOR
 
 def feature_extraction(img):
     # Make a new image equal to the original image

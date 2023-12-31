@@ -1,0 +1,5 @@
+# constants.py
+
+STEPSIZE = 10
+FRAME_LIMIT = 50
+DOWNSCALE_FACTOR = 2
