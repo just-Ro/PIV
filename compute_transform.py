@@ -163,6 +163,7 @@ def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.
     
     # Compute all homographies between feature points
     all_H = compute_every_homography(features)
+    print(np.shape(all_H))
     
     # Concatenate homographies into a single array
     H = []
@@ -199,6 +200,7 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
     
     # Compute all homographies between feature points
     all_H = compute_every_homography(features)
+    print(np.shape(all_H))
 
     #show homography between first and last frame
     #showHomography(0,len(features)-1,all_H[0][-1])
