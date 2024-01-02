@@ -22,7 +22,7 @@ def pad(img: np.ndarray, left_border: int=0, right_border: int=0, top_border: in
     
     return img
 
-def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray) -> np.ndarray:
+def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray):
     """
     Find the homography matrix using Direct Linear Transform (DLT).
 
@@ -56,14 +56,15 @@ def findHomography(src_pts: np.ndarray, dst_pts: np.ndarray) -> np.ndarray:
 
     # Perform Singular Value Decomposition (SVD) on matrix A
     _, _, V = np.linalg.svd(A)
-    
+
     # The homography matrix is the last column of V (right singular vector)
     H = V[-1, :].reshape((3, 3))
 
-    # Normalize the homography matrix to ensure H[2, 2] is 1
+    # Normalize the homography matrix
+    # H /= np.linalg.norm(H, "fro")
     H /= H[2, 2]
-    
-    return H
+
+    return np.array(H, dtype=np.double)
 
 def warpPerspective(src: np.ndarray, H: np.ndarray, dst_size) -> np.ndarray:
     """
@@ -138,8 +139,8 @@ def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, ransacReprojTh
     """
     
     best_num_inliers = 0
-    best_H = np.array([])
-    best_mask = np.array([])
+    best_H = np.eye(3,3, dtype=np.double)
+    best_mask = np.array([], dtype=np.bool_)
 
     for _ in range(n_iter):
         # Randomly select 4 points from the source and destination points
@@ -167,7 +168,7 @@ def ransac(src_pts: np.ndarray, dst_pts: np.ndarray, n_iter: int, ransacReprojTh
             best_mask = inliers
 
     # Return the best homography and the mask of inliers
-    return best_H, best_mask
+    return best_H, np.array(best_mask, dtype=np.bool_)
 
 ############## UNTESTED (made by copilot) ##############
 def warpAndStitch(img1: np.ndarray, img2: np.ndarray, H: np.ndarray) -> np.ndarray:

@@ -3,16 +3,15 @@ import scipy as sp
 import matplotlib.pyplot as plt
 import sys
 from scipy.io import loadmat, savemat
-from sklearn.neighbors import NearestNeighbors                                                       #the goattt
+from sklearn.neighbors import NearestNeighbors    #the goattt
 from pivlib.cv import ransac, findHomography
 from pivlib.config import Config
 from pivlib.utils import Progress
 from pivlib.utils import showTransformations, showHomography
+from constants import *
 
-RANSAC_ITER = 1000
-RANSAC_THRESHOLD = 1
-DISTANCE = 1
-# 50
+# Melhor:50
+# Pre-alterações:1
 
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: float):
     """
@@ -87,14 +86,52 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     # MATCHING
     keypoints1, keypoints2, threshold = featureMatching(features1.T, features2.T, DISTANCE)    
     inliers = np.zeros(len(keypoints1), dtype=bool)
+    print(f"\nthreshold: {threshold}")
 
     # RANSAC
-    _, inliers = ransac(keypoints1, keypoints2, RANSAC_ITER, threshold)
+    _, inliers = ransac(keypoints1, keypoints2, RANSAC_ITER, RANSAC_THRESHOLD * threshold)
+
+    num_inliers = np.sum(inliers).astype(int)
+    print(f"matches without sum: {len(inliers)}\n")
+    print(f"inliers with sum: {num_inliers}\n")
+    # print(f"inliers: {inliers}\n")
+    # Ensure that there are at least 4 inliers
+    if num_inliers < 4:
+        print(f"\033[93mWarning: Not enough inliers. Number of inliers: {num_inliers}\033[m")
 
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
 
     return homography, inliers, keypoints1[inliers], keypoints2[inliers]
+
+def codigo_tomas(features):
+    # Initialize H and fill diagonal with identity matrices
+    H = [[np.empty((3, 3)) for i in range(len(features))] for j in range(len(features))]
+    for i in range(len(H)):
+        H[i][i] = np.eye(3)
+
+    # Initialize progress bar
+    bar = Progress(len(features)-1, "Computing homographies:", True, True, False, True, True, 20)
+
+    # Versão Tomás
+    num_features = len(features)
+    aux = np.arange(1, num_features)
+
+    while aux.all() != num_features: # Enquanto não se chegar ao fim de todas as linhas
+        for i in range(num_features-1):
+            for j in range(aux[i], num_features):
+                if aux[i] == i + 1:
+                    H[i][j], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[j])
+                else:
+                    H[i][j] = np.dot(H[i][aux[i]], H[aux[i]][j])
+
+                num_inliers = np.sum(inliers).astype(int)
+                if num_inliers < 30:
+                    aux[i] = j
+                    print(f"Warning: Not enough inliers. Number of inliers: {num_inliers} Line: {i}/{num_features} Column: {j}/{num_features}")
+                    continue
+
+    # Fim versão Tomás
 
 def compute_every_homography(features: np.ndarray):
     """
@@ -122,24 +159,24 @@ def compute_every_homography(features: np.ndarray):
     # Compute homographies between consecutive feature points
     for i in range(len(features)-1):
         # Compute the upper triangular diagonal element
-        H[i][i+1], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
-
+        h, inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
+        H[i][i+1] = h/h[2,2]
+        
         #showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
 
         # Compute the lower triangular diagonal element
-        H[i+1][i] = np.linalg.inv(H[i][i+1])
+        h = np.linalg.inv(H[i][i+1])
+        H[i+1][i] = h/h[2,2]
         
         for j in range(i-1, -1, -1):  # i=5 => j€[4,3,2,1,0]
             # Compute upper triangular elements above
-            H[j][i+1] = np.dot(H[j+1][i+1], H[j][i])
-            # H[j][i+1] = np.dot(H[j][i], H[j+1][i+1])
+            h = np.dot(H[i][i+1], H[j][i])
+            H[j][i+1] = h/h[2,2]
 
             # Compute lower triangular elements to the left
-            H[i+1][j] = np.dot(H[i+1][j+1], H[i][j])
-            # H[i+1][j] = np.dot(H[i][j], H[i+1][j+1])
-        
+            h = np.dot(H[i+1][i], H[i][j])
+            H[i+1][j] = h/h[2,2]
         bar.update(i+1)
-    
     return H
 
 def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.ndarray:

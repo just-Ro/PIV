@@ -192,6 +192,7 @@ def main():
         j, i = homo[:2]
         params = homo[2:].reshape(3,3)
         H[int(j)][int(i)] = params
+        # H[int(i)][int(j)] = np.linalg.inv(params)
     
     vid = int(input("Choose video: ")) - 1
     vid = videos[vid]
@@ -238,7 +239,6 @@ def main():
                 continue
         else:
             break
-
 
 
 if __name__ == "__main__":
