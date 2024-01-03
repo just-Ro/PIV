@@ -106,11 +106,11 @@ def evaluateHomography(feat1: np.ndarray, feat2: np.ndarray, H: np.ndarray):
     # Warp the features of the second image
     warped = feat2
     for i, (x, y) in enumerate(feat2):
-        warped[i] = np.dot(H, np.array([x, y, 1]))
-        warped[i] /= warped[i, 2]
+        aux = np.dot(H, np.array([x, y, 1]))
+        warped[i] = (aux/aux[2])[:2]
 
     # Calculate sum of squared distances from each pair of keypoints
-    dist = np.sum((feat1 - warped)**2, axis=1)
+    dist = float(np.mean(np.sum((feat1 - warped)**2, axis=1)))
 
     return dist
 
@@ -128,7 +128,7 @@ def codigo_tomas(features):
     num_features = len(features)
     progress = np.arange(num_features)
     threshold = 100
-    max_iter = 1000000
+    max_iter = 100000000
     while progress.all() != (num_features - 1): # Enquanto não se chegar ao fim de todas as linhas
         for i in range(num_features):
             for j in range(progress[i] + 1, num_features):
@@ -136,20 +136,26 @@ def codigo_tomas(features):
                 H[best][j], _, keypoints1, keypoints2 = findBestHomography(features[best], features[j])
                 
                 error = evaluateHomography(keypoints1, keypoints2, H[best][j])
-                if error > threshold:
+                if error > threshold and j-i > 1:
                     print(f"error: {error}")
                     print(f"Failed at {i} {j}")
                     progress[i] = j - 1
-                    continue
-                else:
-                    H[i][j] = np.dot(H[i][best], H[best][j])
-                    H[j][i] = np.linalg.inv(H[i][j])
-                    ################
-                    matrix[i][j] = 1
-                    matrix[j][i] = 1
-                    print()
-                    print(matrix)
                     input()
+                    break
+                else:
+                    print(f"Found at {i} {j}")
+                    H[i][j] = np.dot(H[i][best], H[best][j])
+                    try:
+                        H[j][i] = np.linalg.inv(H[i][j])
+                    except np.linalg.LinAlgError:
+                        print("Singular matrix")
+                        print(H[i][j])
+                        exit()
+                    ################
+                    # matrix[i][j] = 1
+                    # matrix[j][i] = 1
+                    # print()
+                    # print(matrix)
                     ################
                     if j == num_features - 1:
                         progress[i] = j
