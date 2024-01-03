@@ -102,6 +102,18 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
 
     return homography, inliers, keypoints1[inliers], keypoints2[inliers]
 
+def evaluateHomography(feat1: np.ndarray, feat2: np.ndarray, H: np.ndarray):
+    # Warp the features of the second image
+    warped = feat2
+    for i, (x, y) in enumerate(feat2):
+        warped[i] = np.dot(H, np.array([x, y, 1]))
+        warped[i] /= warped[i, 2]
+
+    # Calculate sum of squared distances from each pair of keypoints
+    dist = np.sum((feat1 - warped)**2, axis=1)
+
+    return dist
+
 def codigo_tomas(features):
     # Initialize H and fill diagonal with identity matrices
     H = [[np.empty((3, 3)) for i in range(len(features))] for j in range(len(features))]
@@ -109,27 +121,47 @@ def codigo_tomas(features):
         H[i][i] = np.eye(3)
 
     # Initialize progress bar
-    bar = Progress(len(features)-1, "Computing homographies:", True, True, False, True, True, 20)
+    bar = Progress(int((len(features)-1)*len(features)/2), "Computing homographies:", True, True, False, True, True, 20)
 
     # Versão Tomás
+    matrix = np.zeros((len(features), len(features)))
     num_features = len(features)
-    aux = np.arange(1, num_features)
-
-    while aux.all() != num_features: # Enquanto não se chegar ao fim de todas as linhas
-        for i in range(num_features-1):
-            for j in range(aux[i], num_features):
-                if aux[i] == i + 1:
-                    H[i][j], inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[j])
-                else:
-                    H[i][j] = np.dot(H[i][aux[i]], H[aux[i]][j])
-
-                num_inliers = np.sum(inliers).astype(int)
-                if num_inliers < 30:
-                    aux[i] = j
-                    print(f"Warning: Not enough inliers. Number of inliers: {num_inliers} Line: {i}/{num_features} Column: {j}/{num_features}")
+    progress = np.arange(num_features)
+    threshold = 100
+    max_iter = 1000000
+    while progress.all() != (num_features - 1): # Enquanto não se chegar ao fim de todas as linhas
+        for i in range(num_features):
+            for j in range(progress[i] + 1, num_features):
+                best = progress[i]
+                H[best][j], _, keypoints1, keypoints2 = findBestHomography(features[best], features[j])
+                
+                error = evaluateHomography(keypoints1, keypoints2, H[best][j])
+                if error > threshold:
+                    print(f"error: {error}")
+                    print(f"Failed at {i} {j}")
+                    progress[i] = j - 1
                     continue
+                else:
+                    H[i][j] = np.dot(H[i][best], H[best][j])
+                    H[j][i] = np.linalg.inv(H[i][j])
+                    ################
+                    matrix[i][j] = 1
+                    matrix[j][i] = 1
+                    print()
+                    print(matrix)
+                    input()
+                    ################
+                    if j == num_features - 1:
+                        progress[i] = j
+                    bar.update()
+        max_iter -= 1
+        if max_iter == 0:
+            print("Max iterations reached")
+            break
 
+    return H
     # Fim versão Tomás
+
 
 def compute_every_homography(features: np.ndarray):
     """
@@ -233,7 +265,8 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
     """
     
     # Compute all homographies between feature points
-    all_H = compute_every_homography(features)
+    #all_H = compute_every_homography(features)
+    all_H = codigo_tomas(features)      # TODO
 
     if DEBUG:
         while True:

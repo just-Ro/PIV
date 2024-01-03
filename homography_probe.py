@@ -119,7 +119,6 @@ def stitch(frame1, frame2, homography: np.ndarray):
     img = addWeighted(frame1, 0.5, dst, 0.5)
     
     # Show the concatenated image with lines
-    plt.title(f"Images blended with homography, mse = {evaluateHomography(frame1, frame2, homography)}")
     plt.imshow(img)
     plt.show()
 
@@ -150,32 +149,6 @@ def menu():
     print("============================")
     print("Input: ", end="")
 
-def evaluateHomography(im1, im2, H):
-    """
-    Evaluate the performance of a homography matrix by warping im1 to im2 and calculating the mean squared error.
-
-    Parameters:
-    - im1: First image
-    - im2: Second image
-    - H: Homography matrix (3x3)
-
-    Returns:
-    - mse: Mean Squared Error between the warped im1 and im2 in the overlapping region
-    """
-
-    # Warp im1 to im2 using cv2.warpPerspective
-    warped_im1 = cv2.warpPerspective(im1, H, (im2.shape[1], im2.shape[0]))
-
-    # Find the overlapping region
-    overlap_region = cv2.bitwise_and(warped_im1, im2)
-
-    # Calculate the absolute difference only in the overlapping region
-    difference = cv2.absdiff(overlap_region, im2)
-
-    # Calculate the mean squared error (MSE) as a measure of difference
-    mse = np.mean(difference**2)
-
-    return mse
 
 def main():
     if len(sys.argv) != 2:
@@ -213,7 +186,13 @@ def main():
         H[int(j)][int(i)] = params
         H[int(i)][int(j)] = np.linalg.inv(params)
     
-    vid = int(input("Choose video: ")) - 1
+    
+    video_num = int(input("Choose video: "))
+    while video_num < 0 or video_num > videos.shape[0]:
+        print("Choose again")
+        video_num = int(input("Choose video: "))
+
+    vid = video_num - 1
     vid = videos[vid]
 
     while True:

@@ -68,6 +68,8 @@ class Progress():
         self.size=bar_length
         self.eta=display_eta
         
+        self.prev_iteration = 0
+        
         self.__pre_calc__ = 1/goal
         self.__start_time__ = time.time()
         self.__prev_time__ = self.__start_time__
@@ -118,7 +120,7 @@ class Progress():
         
         return string
     
-    def update(self, iteration: int):
+    def update(self, iteration: int=-1):
         """
         Prints the formatted progress string for a given iteration on the same line.
         Clears the line and prints a newline when the goal is reached.
@@ -127,6 +129,9 @@ class Progress():
         -
         - param iteration: The current iteration number.
         """
+        if iteration == -1:
+            self.prev_iteration += 1
+            iteration = self.prev_iteration
         
         print(f"\r{self.getstr(iteration)}", end='', flush=True)
         if iteration == self.goal:
