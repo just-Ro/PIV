@@ -71,6 +71,16 @@ class Progress():
         self.__pre_calc__ = 1/goal
         self.__start_time__ = time.time()
         self.__prev_time__ = self.__start_time__
+        
+        # Check if the terminal can print ■ and □
+        if self.bar:
+            try:
+                print("\r■□",end='')
+                print("\r  ",end='\r')
+            except UnicodeEncodeError:
+                self.bar=False
+                print("Warning: Terminal does not support Unicode characters. Progress bar disabled.")
+
 
     def getstr(self, iteration: int) -> str:
         """
@@ -94,7 +104,10 @@ class Progress():
             string += f"{100*iteration*self.__pre_calc__:.2f}% "
         if self.bar:
             full_bar = int(self.size*iteration*self.__pre_calc__)
-            string += f"[{'■' * full_bar}{'□' * (self.size - full_bar)}] "
+            if iteration == self.goal:
+                string += f"[\033[92m{'■' * full_bar}{'□' * (self.size - full_bar)}\033[0m] "
+            else:
+                string += f"[\033[93m{'■' * full_bar}{'□' * (self.size - full_bar)}\033[0m] "
         if self.eta:
 
             self.__prev_time__ = time.time()

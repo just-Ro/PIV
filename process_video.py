@@ -6,11 +6,7 @@ from pprint import pprint
 from scipy.io import savemat, loadmat
 from pivlib.utils import Progress
 from pivlib.config import Config
-
-# STEPSIZE = 1
-# FRAME_LIMIT = 50
-# DOWNSCALE_FACTOR = 2
-from constants import STEPSIZE, FRAME_LIMIT, DOWNSCALE_FACTOR
+from constants import *
 
 def feature_extraction(img):
     # Make a new image equal to the original image
@@ -29,13 +25,9 @@ def feature_extraction(img):
     img_with_keypoints = cv.drawKeypoints(img_copy, keypoints, img_copy, flags=cv.DRAW_MATCHES_FLAGS_DEFAULT)
 
     # Display the frame with keypoints
-    cv.imshow('Frame with Keypoints', img_with_keypoints)
-    cv.waitKey(int(STEPSIZE))  # Adjust the wait time to control the speed of the video
-    
-    #Display the image with keypoints
-    #plt.imshow(cv.cvtColor(img_with_keypoints, cv.COLOR_BGR2RGB))
-    #plt.axis("off")
-    #plt.show()
+    if DEBUG:
+        cv.imshow('Frame with Keypoints', img_with_keypoints)
+        cv.waitKey(int(STEPSIZE))  # Adjust the wait time to control the speed of the video
 
     keypoints_coord = []
     # store the keypoints coordinates
@@ -51,21 +43,33 @@ def feature_extraction(img):
 
     return features
 
-
-def video2array(filepath):
+def video2array(filepath, frame_limit=-1, frame_step: int=1, scale: float=1):
     cap = cv.VideoCapture(filepath)
     if not cap.isOpened():
-        print("Error: Could not open video file.")
+        print(f"Error: Could not open video file {filepath}")
         return None
 
     frames = []
+    counter = 0
     while True:
         ret, frame = cap.read()
         if not ret:
             break
         frame_rgb = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-        frames.append(frame_rgb)
 
+        # Check if the frame limit has been reached
+        if frame_limit != -1 and len(frames) == frame_limit:
+            break
+
+        # Check if the current frame should be included
+        if counter % frame_step == 0:
+            if scale != 1:
+                # Resize the frame
+                frame = cv.resize(frame, (0, 0), fx=scale, fy=scale)
+            frames.append(frame_rgb)
+
+        counter += 1
+        
     cap.release()
     return np.array(frames)
 
@@ -76,30 +80,36 @@ def main():
         sys.exit(1)
 
     config_data = Config(sys.argv[1])
-    video_path = config_data.videos[0]
 
-    video_array = video2array(video_path)
+    
+    # Load the video
+    video_array = video2array(config_data.videos[0], FRAME_LIMIT, STEPSIZE, 1/DOWNSCALE_FACTOR)
     if video_array is None:
         print("Error opening video file")
         exit()
 
-    num_frames = min(int(video_array.shape[0] / STEPSIZE), FRAME_LIMIT)
+    num_frames = video_array.shape[0]
     features = np.empty(num_frames, dtype='object')
     used_frames = np.empty(num_frames, dtype='object')
 
-    bar = Progress(num_frames, "Frames analyzed:", True, True, False, True, True, 20)
+    print(f"Downscaling the video by a factor of {DOWNSCALE_FACTOR}")
+    print(f"Processing {num_frames} frames of the video, {STEPSIZE} frames apart")
+    
+    bar = Progress(num_frames, "Extracting features:", True, True, False, True, True, 20)
 
-    for i in range(num_frames):
-        frame = video_array[i * STEPSIZE]
-        frame = cv.resize(frame, (0, 0), fx=1 / DOWNSCALE_FACTOR, fy=1 / DOWNSCALE_FACTOR)
-        used_frames[i] = frame
+    # Extract features from each frame
+    for i,frame in enumerate(video_array):
+        if DEBUG:
+            used_frames[i] = frame
         features[i] = feature_extraction(frame)
         bar.update(i+1)
 
     cv.destroyAllWindows()
 
+    # Save the features to a .mat file
     savemat(config_data.keypoints_out, {'features': features})
-    savemat("output/frames.mat", {'frames': used_frames})
+    if DEBUG:
+        savemat("output/frames.mat", {'frames': used_frames})
 
 
 if __name__=='__main__':

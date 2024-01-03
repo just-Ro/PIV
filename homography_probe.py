@@ -5,15 +5,8 @@ from pivlib.config import Config
 from matplotlib import pyplot as plt
 import sys
 from scipy.io import loadmat
+from constants import *
 
-
-
-# STEPSIZE = 1
-# #Frame Limit = -1 means no limit
-# FRAME_LIMIT = 50
-# DOWNSCALE_FACTOR = 2
-
-from constants import STEPSIZE, FRAME_LIMIT, DOWNSCALE_FACTOR
 
 def video2array(filepath, frame_limit=-1, frame_step: int=1, scale: float=1):
     cap = cv2.VideoCapture(filepath)
@@ -126,7 +119,7 @@ def stitch(frame1, frame2, homography: np.ndarray):
     img = addWeighted(frame1, 0.5, dst, 0.5)
     
     # Show the concatenated image with lines
-    #plt.title(f"Image {frame_number1} and Image {frame_number2} blended with homography")
+    plt.title(f"Images blended with homography, mse = {evaluateHomography(frame1, frame2, homography)}")
     plt.imshow(img)
     plt.show()
 
@@ -157,6 +150,32 @@ def menu():
     print("============================")
     print("Input: ", end="")
 
+def evaluateHomography(im1, im2, H):
+    """
+    Evaluate the performance of a homography matrix by warping im1 to im2 and calculating the mean squared error.
+
+    Parameters:
+    - im1: First image
+    - im2: Second image
+    - H: Homography matrix (3x3)
+
+    Returns:
+    - mse: Mean Squared Error between the warped im1 and im2 in the overlapping region
+    """
+
+    # Warp im1 to im2 using cv2.warpPerspective
+    warped_im1 = cv2.warpPerspective(im1, H, (im2.shape[1], im2.shape[0]))
+
+    # Find the overlapping region
+    overlap_region = cv2.bitwise_and(warped_im1, im2)
+
+    # Calculate the absolute difference only in the overlapping region
+    difference = cv2.absdiff(overlap_region, im2)
+
+    # Calculate the mean squared error (MSE) as a measure of difference
+    mse = np.mean(difference**2)
+
+    return mse
 
 def main():
     if len(sys.argv) != 2:
@@ -192,7 +211,7 @@ def main():
         j, i = homo[:2]
         params = homo[2:].reshape(3,3)
         H[int(j)][int(i)] = params
-        # H[int(i)][int(j)] = np.linalg.inv(params)
+        H[int(i)][int(j)] = np.linalg.inv(params)
     
     vid = int(input("Choose video: ")) - 1
     vid = videos[vid]
@@ -237,6 +256,8 @@ def main():
                 stitch(vid[frame1],vid[frame2],H[frame2][frame1])
             except:
                 continue
+        elif action.isnumeric():
+            continue
         else:
             break
 

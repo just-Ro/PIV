@@ -10,8 +10,6 @@ from pivlib.utils import Progress
 from pivlib.utils import showTransformations, showHomography
 from constants import *
 
-# Melhor:50
-# Pre-alterações:1
 
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: float):
     """
@@ -86,14 +84,14 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     # MATCHING
     keypoints1, keypoints2, threshold = featureMatching(features1.T, features2.T, DISTANCE)    
     inliers = np.zeros(len(keypoints1), dtype=bool)
-    print(f"\nthreshold: {threshold}")
+    # print(f"\nthreshold: {threshold}")
 
     # RANSAC
     _, inliers = ransac(keypoints1, keypoints2, RANSAC_ITER, RANSAC_THRESHOLD * threshold)
 
     num_inliers = np.sum(inliers).astype(int)
-    print(f"matches without sum: {len(inliers)}\n")
-    print(f"inliers with sum: {num_inliers}\n")
+    # print(f"matches without sum: {len(inliers)}\n")
+    # print(f"inliers with sum: {num_inliers}\n")
     # print(f"inliers: {inliers}\n")
     # Ensure that there are at least 4 inliers
     if num_inliers < 4:
@@ -200,7 +198,6 @@ def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.
     
     # Compute all homographies between feature points
     all_H = compute_every_homography(features)
-    print(np.shape(all_H))
     
     # Concatenate homographies into a single array
     H = []
@@ -237,20 +234,18 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
     
     # Compute all homographies between feature points
     all_H = compute_every_homography(features)
-    print(np.shape(all_H))
 
-    #show homography between first and last frame
-    #showHomography(0,len(features)-1,all_H[0][-1])
-    while True:
-        try:
-            frame1 = int(input("Enter frame1: "))
-            frame2 = int(input("Enter frame2: "))
-            if frame1 >= len(features) or frame2 >= len(features):
-                print("Frame number out of bounds")
-                continue
-            showHomography(frame1,frame2,all_H[frame2][frame1])
-        except:
-            break
+    if DEBUG:
+        while True:
+            try:
+                frame1 = int(input("Enter frame1: "))
+                frame2 = int(input("Enter frame2: "))
+                if frame1 >= len(features) or frame2 >= len(features):
+                    print("Frame number out of bounds")
+                    continue
+                showHomography(frame1,frame2,all_H[frame2][frame1])
+            except:
+                break
 
     # Concatenate homographies into a single array
     H = []

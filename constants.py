@@ -1,6 +1,6 @@
 # Constants for the process video
-STEPSIZE = 2
-FRAME_LIMIT = 20
+STEPSIZE = 10
+FRAME_LIMIT = 100
 DOWNSCALE_FACTOR = 2
 
 # Constants for the compute transform
@@ -12,3 +12,6 @@ DISTANCE = 50
 # RANSAC_ITER = 5000
 # RANSAC_THRESHOLD = 0.01
 # DISTANCE = 50
+
+# DEBUG CONTROL
+DEBUG = False
