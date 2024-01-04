@@ -58,24 +58,6 @@ def import_videos(filepaths, frame_limit=-1, frame_step: int=1, scale: float=1, 
     
     return np.concatenate([arr[np.newaxis, :] for arr in videos], axis=0)
 
-def reverse_triangular_sum(target_sum):
-    # Coefficients of the quadratic equation
-    a = 1/2
-    b = -1/2
-    c = -target_sum
-
-    # Calculate the roots of the quadratic equation
-    roots = np.roots([a, b, c])
-
-    # Select the real positive root
-    real_roots = roots[np.isreal(roots)].real
-    positive_root = real_roots[real_roots > 0]
-
-    if len(positive_root) == 0:
-        return None  # No real positive root
-
-    return int(positive_root[0])
-
 def showFrames(frame1, frame2):
     # Create an empty image to concatenate the two images side by side
     concatenated_image = np.zeros((max(frame1.shape[0], frame2.shape[0]), frame1.shape[1] + frame2.shape[1], 3), dtype=np.uint8)
@@ -145,7 +127,7 @@ def menu():
     print("stitch ", end="")
     print_color("[3]\n", 'CYAN')
     print("exit ", end="")
-    print_color("[any other key]\n", 'YELLOW')
+    print_color("[Enter]\n", 'YELLOW')
     print("============================")
     print("Input: ", end="")
 
@@ -170,10 +152,7 @@ def main():
         exit(1)
 
     # Find original Homography matrix size
-    homo_size = reverse_triangular_sum(len(homographies))
-    if homo_size is None:
-        print("Homography with size 0")
-        exit()
+    homo_size = videos[0].shape[0]
     
     # Initialize original Homography matrix
     H = [[np.empty((3, 3)) for i in range(homo_size)] for j in range(homo_size)]

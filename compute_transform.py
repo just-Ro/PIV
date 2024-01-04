@@ -8,6 +8,7 @@ from pivlib.cv import ransac, findHomography
 from pivlib.config import Config
 from pivlib.utils import Progress
 from pivlib.utils import showTransformations, showHomography
+from pprint import pprint
 from constants import *
 
 
@@ -96,6 +97,7 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     # Ensure that there are at least 4 inliers
     if num_inliers < 4:
         print(f"\033[93mWarning: Not enough inliers. Number of inliers: {num_inliers}\033[m")
+        return np.eye(3,3), inliers, keypoints1[inliers], keypoints2[inliers]
 
     # HOMOGRAPHY
     homography = findHomography(keypoints1[inliers], keypoints2[inliers])
@@ -114,62 +116,66 @@ def evaluateHomography(feat1: np.ndarray, feat2: np.ndarray, H: np.ndarray):
 
     return dist
 
-def codigo_tomas(features):
+def smart_homography(features):
     # Initialize H and fill diagonal with identity matrices
     H = [[np.empty((3, 3)) for i in range(len(features))] for j in range(len(features))]
     for i in range(len(H)):
         H[i][i] = np.eye(3)
 
     # Initialize progress bar
-    bar = Progress(int((len(features)-1)*len(features)/2), "Computing homographies:", True, True, False, True, True, 20)
 
     # Versão Tomás
     matrix = np.zeros((len(features), len(features)))
     num_features = len(features)
     progress = np.arange(num_features)
-    threshold = 100
-    max_iter = 100000000
-    while progress.all() != (num_features - 1): # Enquanto não se chegar ao fim de todas as linhas
+    max_iter = 10000000
+    
+    while len(set(progress)) > 1: # Enquanto não se chegar ao fim de todas as linhas
+        bar = Progress(len(features), "Computing homographies:", True, True, False, True, True, 20)
         for i in range(num_features):
             for j in range(progress[i] + 1, num_features):
-                best = progress[i]
-                H[best][j], _, keypoints1, keypoints2 = findBestHomography(features[best], features[j])
                 
-                error = evaluateHomography(keypoints1, keypoints2, H[best][j])
-                if error > threshold and j-i > 1:
-                    print(f"error: {error}")
-                    print(f"Failed at {i} {j}")
-                    progress[i] = j - 1
-                    input()
-                    break
-                else:
-                    print(f"Found at {i} {j}")
-                    H[i][j] = np.dot(H[i][best], H[best][j])
-                    try:
-                        H[j][i] = np.linalg.inv(H[i][j])
-                    except np.linalg.LinAlgError:
-                        print("Singular matrix")
-                        print(H[i][j])
-                        exit()
-                    ################
-                    # matrix[i][j] = 1
-                    # matrix[j][i] = 1
-                    # print()
-                    # print(matrix)
-                    ################
-                    if j == num_features - 1:
-                        progress[i] = j
-                    bar.update()
+                best = progress[i]
+                
+                if matrix[best][j] == 0:
+                    homo_aux, inliers, keypoints1, keypoints2 = findBestHomography(features[best], features[j])
+
+                    if np.sum(inliers).astype(int) > 4:
+                        error = evaluateHomography(keypoints1, keypoints2, homo_aux)
+                        if (error > JUMP_THRESHOLD and j-i > 1):
+                            progress[i] = j - 1
+                            print(f"\nFailed in i = {i}-> b = {best}-> j = {j}")
+                            break
+                    else:
+                        progress[i] = j - 1
+                        print(f"\nFailed in i = {i}-> b = {best}-> j = {j}")
+                        break
+
+                    H[best][j] = homo_aux
+                    matrix[best][j] = 1
+
+                H[i][j] = np.dot(H[i][best], H[best][j])
+                H[j][i] = np.linalg.inv(H[i][j])
+                matrix[i][j] = 1
+                matrix[j][i] = 1
+
+                if j == num_features - 1:
+                    progress[i] = j
+            bar.update()
+        
         max_iter -= 1
         if max_iter == 0:
             print("Max iterations reached")
             break
 
+    print("ACABAOU CARALHO")
+    print(f"max_iter: {max_iter}")
+    print(f"H.shape: {np.array(H).shape}")
+    
     return H
     # Fim versão Tomás
 
-
-def compute_every_homography(features: np.ndarray):
+def braindead_homography(features: np.ndarray):
     """
     Compute homographies between consecutive feature points.
 
@@ -235,21 +241,21 @@ def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.
     """
     
     # Compute all homographies between feature points
-    all_H = compute_every_homography(features)
+    # all_H = braindead_homography(features)
+    all_H = smart_homography(features)      # TODO
     
     # Concatenate homographies into a single array
     H = []
-    for i in range(len(all_H)-1):
-        if i == map_frame:
-            # Use the specified map_H directly for the map frame
-            homography = map_H
-        else:
-            # Compute the homography from the frame to the map
-            homography = np.dot(map_H, all_H[i][map_frame])
 
-        # Create a flattened representation of the homography matrix
-        flattened_H = np.hstack((np.array([map_frame, i]), homography.flatten()))
-        H.append(flattened_H)
+    for i in range(map_frame):
+        homo = np.dot(map_H, all_H[i][map_frame])
+        H.append(np.hstack((np.array([i, map_frame]), homo.flatten())))
+
+    H.append(np.hstack((np.array([map_frame, map_frame]), map_H.flatten())))
+
+    for i in range(map_frame+1, len(features)):
+        homo = np.dot(map_H, all_H[i][map_frame])
+        H.append(np.hstack((np.array([i, map_frame]), homo.flatten())))
 
     # Convert the list of homographies into a 2D numpy array and transpose
     return np.array(H).T
@@ -271,20 +277,8 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
     """
     
     # Compute all homographies between feature points
-    #all_H = compute_every_homography(features)
-    all_H = codigo_tomas(features)      # TODO
-
-    if DEBUG:
-        while True:
-            try:
-                frame1 = int(input("Enter frame1: "))
-                frame2 = int(input("Enter frame2: "))
-                if frame1 >= len(features) or frame2 >= len(features):
-                    print("Frame number out of bounds")
-                    continue
-                showHomography(frame1,frame2,all_H[frame2][frame1])
-            except:
-                break
+    # all_H = braindead_homography(features)
+    all_H = smart_homography(features)      # TODO
 
     # Concatenate homographies into a single array
     H = []
@@ -318,7 +312,7 @@ def main():
         map_frame = int(cfg.frame_number[m_i])
         map_H = findHomography(cfg.pts_in_frame[m_i], cfg.pts_in_map[m_i])
         H = output_map_H(features, map_frame, map_H)
-    
+
     else:
         raise TypeError("Transforms type not recognized")
 
