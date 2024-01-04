@@ -70,20 +70,7 @@ def showFrames(frame1, frame2):
     #plt.title(f"Image {frame_number1} and Image {frame_number2}")
     plt.imshow(concatenated_image)
     plt.show()
-
-def showHomography(frame1, transformed: np.ndarray):
-    concatenated_image = np.zeros((frame1.shape[0], 2*frame1.shape[1], 3), dtype=np.uint8)
-    
-    # Draw the transformed image side by side with the first image
-
-    # Copy the transformed image into the empty space
-    concatenated_image[:frame1.shape[0], :frame1.shape[1]] = frame1
-    concatenated_image[:transformed.shape[0], transformed.shape[1]:] = transformed
-    
-    # Show the concatenated image with lines
-    plt.title(f"Image warped with homography")
-    plt.imshow(concatenated_image)
-    plt.show()
+    # plt.savefig('frames.png')
 
 def stitch(frame1, frame2):
     img = addWeighted(frame1, 0.5, frame2, 0.5)
@@ -91,6 +78,7 @@ def stitch(frame1, frame2):
     # Show the concatenated image with lines
     plt.imshow(img)
     plt.show()
+    # plt.savefig('stitched.png')
 
 def print_color(text, color):
     colors = {
@@ -244,7 +232,7 @@ def main():
                         print("Frame number out of bounds")
                         continue
                     shape = vid[frame1].shape[:2][::-1]
-                    homo = cv2.warpPerspective(vid[frame1],H[frame1],shape)
+                    homo = cv2.warpPerspective(vid[frame1],H[frame1],shape) # type: ignore
                     showFrames(vid[frame1],homo)
                 except:
                     continue
@@ -257,7 +245,7 @@ def main():
                         print("Frame number out of bounds")
                         continue
                     shape = vid[frame1].shape[:2][::-1]
-                    frame1_to_map = cv2.warpPerspective(vid[frame1], H[frame1], shape)
+                    frame1_to_map = cv2.warpPerspective(vid[frame1], H[frame1], shape) # type: ignore
                     #stitch(vid[mapframe],frame1_to_map)
                     shape = vid[mapframe].shape[:2][::-1]
                     #warp mapframe to map

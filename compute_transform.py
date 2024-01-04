@@ -127,11 +127,15 @@ def smart_homography(features):
     matrix = np.zeros((len(features), len(features)))
     num_features = len(features)
     progress = np.arange(num_features)
-    max_iter = 10000000
+    iter = 0
     
     while len(set(progress)) > 1: # Enquanto não se chegar ao fim de todas as linhas
-        bar = Progress(len(features), "Computing homographies:", True, True, False, True, True, 20)
-        for i in range(num_features):
+        if not iter:
+            print("Computing consecutive homographies...")
+        elif iter == 1:
+            print(f"Computing homographies with jumps...")
+        bar = Progress(len(features)-1, "Progress:", True, True, False, True, True, 20)
+        for i in range(num_features-1):
             for j in range(progress[i] + 1, num_features):
                 
                 best = progress[i]
@@ -143,11 +147,13 @@ def smart_homography(features):
                         error = evaluateHomography(keypoints1, keypoints2, homo_aux)
                         if (error > JUMP_THRESHOLD and j-i > 1):
                             progress[i] = j - 1
-                            print(f"\nFailed in i = {i}-> b = {best}-> j = {j}")
+                            if DEBUG:
+                                print(f"\nFailed in i = {i}-> b = {best}-> j = {j}")
                             break
                     else:
                         progress[i] = j - 1
-                        print(f"\nFailed in i = {i}-> b = {best}-> j = {j}")
+                        if DEBUG:
+                            print(f"\nFailed in i = {i}-> b = {best}-> j = {j}")
                         break
 
                     H[best][j] = homo_aux
@@ -162,14 +168,10 @@ def smart_homography(features):
                     progress[i] = j
             bar.update()
         
-        max_iter -= 1
-        if max_iter == 0:
+        iter += 1
+        if iter == 100:
             print("Max iterations reached")
             break
-    
-    print("ACABAOU CARALHO")
-    print(f"max_iter: {max_iter}")
-    print(f"H.shape: {np.array(H).shape}")
     
     return H
     # Fim versão Tomás
@@ -239,8 +241,8 @@ def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.
       The format of each homography is [map_frame, i, H_mi[0,0], H_mi[0,1], ..., H_mi[2,2]].
     """
     # Compute all homographies between feature points
-    all_H = braindead_homography(features)
-    # all_H = smart_homography(features)      # TODO
+    # all_H = braindead_homography(features)
+    all_H = smart_homography(features)      # TODO
     
     # Concatenate homographies into a single array
     H = []
@@ -273,8 +275,8 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
     """
     
     # Compute all homographies between feature points
-    all_H = braindead_homography(features)
-    # all_H = smart_homography(features)      # TODO
+    # all_H = braindead_homography(features)
+    all_H = smart_homography(features)      # TODO
 
     # Concatenate homographies into a single array
     H = []
