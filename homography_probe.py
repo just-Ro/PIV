@@ -71,34 +71,22 @@ def showFrames(frame1, frame2):
     plt.imshow(concatenated_image)
     plt.show()
 
-def showHomography(frame1, homography: np.ndarray):
+def showHomography(frame1, transformed: np.ndarray):
     concatenated_image = np.zeros((frame1.shape[0], 2*frame1.shape[1], 3), dtype=np.uint8)
     
-    # print(f"image2.shape[:2][::-1] = {image2.shape[:2][::-1]}")
-    dst = cv2.warpPerspective(frame1, homography, frame1.shape[:2][::-1])
     # Draw the transformed image side by side with the first image
 
     # Copy the transformed image into the empty space
     concatenated_image[:frame1.shape[0], :frame1.shape[1]] = frame1
-    concatenated_image[:dst.shape[0], dst.shape[1]:] = dst
+    concatenated_image[:transformed.shape[0], transformed.shape[1]:] = transformed
     
     # Show the concatenated image with lines
     plt.title(f"Image warped with homography")
     plt.imshow(concatenated_image)
     plt.show()
 
-def stitch(frame1, frame2, homography: np.ndarray):
-    # Create an empty image to concatenate the two images side by side
-    concatenated_image = np.zeros((max(frame1.shape[0], frame2.shape[0]), frame1.shape[1] + frame2.shape[1], 3), dtype=np.uint8)
-
-    # Copy the images into the concatenated image
-    concatenated_image[:frame1.shape[0], :frame1.shape[1]] = frame1
-    concatenated_image[:frame2.shape[0], frame2.shape[1]:] = frame2
-
-    # print(f"frame2.shape[:2][::-1] = {frame2.shape[:2][::-1]}")
-    dst = cv2.warpPerspective(frame2, homography, frame2.shape[:2][::-1])
-
-    img = addWeighted(frame1, 0.5, dst, 0.5)
+def stitch(frame1, frame2):
+    img = addWeighted(frame1, 0.5, frame2, 0.5)
     
     # Show the concatenated image with lines
     plt.imshow(img)
@@ -154,16 +142,25 @@ def main():
     # Find original Homography matrix size
     homo_size = videos[0].shape[0]
     
-    # Initialize original Homography matrix
-    H = [[np.empty((3, 3)) for i in range(homo_size)] for j in range(homo_size)]
-    for i in range(len(H)):
-        H[i][i] = np.eye(3)
+    H = []
+    if cfg.transforms_params == 'all':
+        # Initialize original Homography matrix
+        H = [[np.empty((3, 3)) for i in range(homo_size)] for j in range(homo_size)]
+        for i in range(len(H)):
+            H[i][i] = np.eye(3)
+
+        for homo in homographies:
+            j, i = int(homo[0]-1), int(homo[1]-1)
+            params = homo[2:].reshape(3,3)
+            H[j][i] = params
+            H[i][j] = np.linalg.inv(params)
     
-    for homo in homographies:
-        j, i = homo[:2]
-        params = homo[2:].reshape(3,3)
-        H[int(j)][int(i)] = params
-        H[int(i)][int(j)] = np.linalg.inv(params)
+    elif cfg.transforms_params == 'map':
+        H = [np.empty((3, 3)) for i in range(homo_size)]
+
+        for homo in homographies:
+            i = int(homo[1]-1)
+            H[i] = homo[2:].reshape(3,3)
     
     
     video_num = int(input("Choose video: "))
@@ -173,51 +170,108 @@ def main():
 
     vid = video_num - 1
     vid = videos[vid]
+    if cfg.transforms_params == 'all':
+        while True:
+            menu()
+            action = str(input())
+            if action == "1":
+                try:
+                    print("============================")
+                    frame1 = int(input("Enter frame1: "))-1
+                    frame2 = int(input("Enter frame2: "))-1
+                    print("============================")
+                    if frame1 >= homo_size or frame2 >= homo_size:
+                        print("Frame number out of bounds")
+                        continue
+                    showFrames(vid[frame1],vid[frame2])
+                except:
+                    continue
+            elif action == "2":
+                try:
+                    print("============================")
+                    frame1 = int(input("Enter frame1: "))-1
+                    frame2 = int(input("Enter frame2: "))-1
+                    print("============================")
+                    if frame1 >= homo_size or frame2 >= homo_size:
+                        print("Frame number out of bounds")
+                        continue
+                    shape = vid[frame2].shape[:2][::-1]
+                    homo = cv2.warpPerspective(vid[frame2],H[frame2][frame1],shape)
+                    showFrames(vid[frame2],homo)
+                except:
+                    continue
+            elif action == "3":
+                try:
+                    print("============================")
+                    frame1 = int(input("Enter frame1: "))-1
+                    frame2 = int(input("Enter frame2: "))-1
+                    print("============================")
+                    if frame1 >= homo_size or frame2 >= homo_size:
+                        print("Frame number out of bounds")
+                        continue
+                    shape = vid[frame2].shape[:2][::-1]
+                    frame2_to_1 = cv2.warpPerspective(vid[frame2], H[frame2][frame1], shape)
+                    stitch(vid[frame1],frame2_to_1)
+                except:
+                    continue
+            elif action.isnumeric():
+                continue
+            else:
+                break
+            
+    elif cfg.transforms_params == 'map':
+        while True:
+            menu()
+            action = str(input())
+            mapframe = cfg.frame_number[0]
+            if action == "1":
+                try:
+                    print("============================")
+                    frame1 = int(input("Choose frame: "))-1
+                    print("============================")
+                    if frame1 >= homo_size:
+                        print("Frame number out of bounds")
+                        continue
+                    showFrames(vid[frame1],vid[mapframe])
+                except:
+                    continue
+            elif action == "2":
+                try:
+                    print("============================")
+                    frame1 = int(input("Choose frame: "))-1
+                    print("============================")
+                    if frame1 >= homo_size:
+                        print("Frame number out of bounds")
+                        continue
+                    shape = vid[frame1].shape[:2][::-1]
+                    homo = cv2.warpPerspective(vid[frame1],H[frame1],shape)
+                    showFrames(vid[frame1],homo)
+                except:
+                    continue
+            elif action == "3":
+                try:
+                    print("============================")
+                    frame1 = int(input("Choose frame: "))-1
+                    print("============================")
+                    if frame1 >= homo_size:
+                        print("Frame number out of bounds")
+                        continue
+                    shape = vid[frame1].shape[:2][::-1]
+                    frame1_to_map = cv2.warpPerspective(vid[frame1], H[frame1], shape)
+                    #stitch(vid[mapframe],frame1_to_map)
+                    shape = vid[mapframe].shape[:2][::-1]
+                    #warp mapframe to map
+                    mapframe_to_map = cv2.warpPerspective(vid[mapframe], H[mapframe], shape)
+                    stitch(mapframe_to_map ,frame1_to_map)
 
-    while True:
-        menu()
-        action = str(input())
-        #action = str(input("Choose what to do:\nshow frames [1]\nshow homography [2]\nstitch [3]\n> "))
-        if action == "1":
-            try:
-                print("============================")
-                frame1 = int(input("Enter frame1: "))
-                frame2 = int(input("Enter frame2: "))
-                print("============================")
-                if frame1 >= homo_size or frame2 >= homo_size:
-                    print("Frame number out of bounds")
+                except:
                     continue
-                showFrames(vid[frame1],vid[frame2])
-            except:
+            elif action.isnumeric():
                 continue
-        elif action == "2":
-            try:
-                print("============================")
-                frame1 = int(input("Enter frame1: "))
-                frame2 = int(input("Enter frame2: "))
-                print("============================")
-                if frame1 >= homo_size or frame2 >= homo_size:
-                    print("Frame number out of bounds")
-                    continue
-                showHomography(vid[frame2],H[frame2][frame1])
-            except:
-                continue
-        elif action == "3":
-            try:
-                print("============================")
-                frame1 = int(input("Enter frame1: "))
-                frame2 = int(input("Enter frame2: "))
-                print("============================")
-                if frame1 >= homo_size or frame2 >= homo_size:
-                    print("Frame number out of bounds")
-                    continue
-                stitch(vid[frame1],vid[frame2],H[frame2][frame1])
-            except:
-                continue
-        elif action.isnumeric():
-            continue
-        else:
-            break
+            else:
+                break
+    else:
+        raise TypeError("Transforms type not recognized")
 
 
 if __name__ == "__main__":

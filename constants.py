@@ -1,5 +1,5 @@
 # Constants for the process video
-STEPSIZE = 5
+STEPSIZE = 15
 FRAME_LIMIT = 20
 DOWNSCALE_FACTOR = 1
 

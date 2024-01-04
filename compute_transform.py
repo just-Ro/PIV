@@ -11,7 +11,6 @@ from pivlib.utils import showTransformations, showHomography
 from pprint import pprint
 from constants import *
 
-
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: float):
     """
     Find the nearest neighbors between two sets of keypoints.
@@ -167,7 +166,7 @@ def smart_homography(features):
         if max_iter == 0:
             print("Max iterations reached")
             break
-
+    
     print("ACABAOU CARALHO")
     print(f"max_iter: {max_iter}")
     print(f"H.shape: {np.array(H).shape}")
@@ -239,23 +238,20 @@ def output_map_H(features: np.ndarray, map_frame: int, map_H: np.ndarray) -> np.
       a homography matrix between the map frame and other feature points.
       The format of each homography is [map_frame, i, H_mi[0,0], H_mi[0,1], ..., H_mi[2,2]].
     """
-    
     # Compute all homographies between feature points
-    # all_H = braindead_homography(features)
-    all_H = smart_homography(features)      # TODO
+    all_H = braindead_homography(features)
+    # all_H = smart_homography(features)      # TODO
     
     # Concatenate homographies into a single array
     H = []
-
-    for i in range(map_frame):
-        homo = np.dot(map_H, all_H[i][map_frame])
-        H.append(np.hstack((np.array([i, map_frame]), homo.flatten())))
-
-    H.append(np.hstack((np.array([map_frame, map_frame]), map_H.flatten())))
-
-    for i in range(map_frame+1, len(features)):
-        homo = np.dot(map_H, all_H[i][map_frame])
-        H.append(np.hstack((np.array([i, map_frame]), homo.flatten())))
+    for i in range(len(features)):
+        if i == map_frame:
+            homo = map_H.flatten()
+        else:
+            homo = np.dot(map_H, all_H[i][map_frame])
+            homo = homo/homo[2,2]
+        flat = np.hstack((np.array([0, i+1]), homo.flatten()))
+        H.append(flat)
 
     # Convert the list of homographies into a 2D numpy array and transpose
     return np.array(H).T
@@ -277,17 +273,17 @@ def output_all_H(features: np.ndarray) -> np.ndarray:
     """
     
     # Compute all homographies between feature points
-    # all_H = braindead_homography(features)
-    all_H = smart_homography(features)      # TODO
+    all_H = braindead_homography(features)
+    # all_H = smart_homography(features)      # TODO
 
     # Concatenate homographies into a single array
     H = []
     for i in range(len(all_H)-1):
         for j in range(i+1, len(all_H)):
             # Create a flattened representation of the homography matrix
-            flat = np.hstack((np.array([j, i]), all_H[j][i].flatten()))
+            flat = np.hstack((np.array([j+1, i+1]), all_H[j][i].flatten()))
             H.append(flat)
-
+    
     # Convert the list of homographies into a 2D numpy array and transpose
     return np.array(H).T
 
@@ -311,6 +307,7 @@ def main():
         m_i = 0
         map_frame = int(cfg.frame_number[m_i])
         map_H = findHomography(cfg.pts_in_frame[m_i], cfg.pts_in_map[m_i])
+        map_H = map_H/map_H[2,2]
         H = output_map_H(features, map_frame, map_H)
 
     else:

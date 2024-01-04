@@ -12,7 +12,7 @@ class Config():
         self.transforms_out: str = self.config_dict['transforms_out'][0][0]
         self.transforms_type: str = self.config_dict['transforms'][0][0]
         self.transforms_params: str = self.config_dict['transforms'][0][1]
-        self.frame_number: np.ndarray = np.array(self.config_dict['pts_in_frame'])[:, 0].astype(int)
+        self.frame_number: np.ndarray = np.array(self.config_dict['pts_in_frame'])[:, 0].astype(int)-1
         self.pts_in_frame: np.ndarray = np.array(self.config_dict['pts_in_frame'])[:, 1:].astype(int).reshape(self.frame_number.size,-1,2)
         self.pts_in_map: np.ndarray = np.array(self.config_dict['pts_in_map'])[:, 1:].astype(int).reshape(self.frame_number.size,-1,2)
         # Config2
