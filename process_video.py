@@ -1,9 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2 as cv
 import sys
-from pprint import pprint
-from scipy.io import savemat, loadmat
+from scipy.io import savemat
 from pivlib.utils import Progress
 from pivlib.config import Config
 from constants import *

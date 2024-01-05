@@ -1,14 +1,10 @@
 import numpy as np
-import scipy as sp
-import matplotlib.pyplot as plt
 import sys
 from scipy.io import loadmat, savemat
 from sklearn.neighbors import NearestNeighbors    #the goattt
 from pivlib.cv import ransac, findHomography
 from pivlib.config import Config
 from pivlib.utils import Progress
-from pivlib.utils import showTransformations, showHomography
-from pprint import pprint
 from constants import *
 
 def featureMatching(frame1: np.ndarray, frame2: np.ndarray, distance_threshold: float):
@@ -95,7 +91,8 @@ def findBestHomography(features1: np.ndarray, features2: np.ndarray):
     # print(f"inliers: {inliers}\n")
     # Ensure that there are at least 4 inliers
     if num_inliers < 4:
-        print(f"\033[93mWarning: Not enough inliers. Number of inliers: {num_inliers}\033[m")
+        if DEBUG:
+            print(f"\033[93mWarning: Not enough inliers. Number of inliers: {num_inliers}\033[m")
         return np.eye(3,3), inliers, keypoints1[inliers], keypoints2[inliers]
 
     # HOMOGRAPHY
@@ -205,7 +202,6 @@ def braindead_homography(features: np.ndarray):
         h, inliers, keypoints1, keypoints2 = findBestHomography(features[i], features[i+1])
         H[i][i+1] = h/h[2,2]
         
-        #showTransformations(i, H[i][i+1], features[i], features[i+1], keypoints1, keypoints2, inliers)
 
         # Compute the lower triangular diagonal element
         h = np.linalg.inv(H[i][i+1])
