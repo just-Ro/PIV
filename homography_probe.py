@@ -122,7 +122,7 @@ def main():
     videos = import_videos(cfg.videos, FRAME_LIMIT, STEPSIZE, 1/DOWNSCALE_FACTOR, True)
 
     try:
-        homographies = loadmat(cfg.transforms_out)['homographies'].T
+        homographies = loadmat(cfg.transforms_out)['H'].T
     except FileNotFoundError:
         print(f"FileNotFoundError: File {cfg.transforms_out} does not exist")
         exit(1)

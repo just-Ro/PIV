@@ -311,7 +311,7 @@ def main():
     else:
         raise TypeError("Transforms type not recognized")
 
-    savemat(cfg.transforms_out, {'homographies': H})
+    savemat(cfg.transforms_out, {'H': H})
 
 if __name__=='__main__':
     main()
